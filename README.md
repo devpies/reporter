@@ -207,6 +207,7 @@ include:
    - repo3
 exclude:
    - repo3
+remote_name: origin
 ```
 
 ## Help
@@ -225,6 +226,8 @@ Options:
 --update, -u      Automatically update repositories that are behind
 --branch, -b      Specify the branch to check (default: main)
 --log, -l         Show the complete list of changes using git log
+--force, -f       Forcefully abort rebase and merge conflicts to update
+--remote, -r      Remote name (default: origin)
 
 Examples:
 

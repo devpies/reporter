@@ -52,10 +52,12 @@ const (
 
 // Config holds configuration values
 type Config struct {
-	Branch  string   `yaml:"branch"`
-	Update  bool     `yaml:"update"`
-	Include []string `yaml:"include"`
-	Exclude []string `yaml:"exclude"`
+	Branch     string   `yaml:"branch"`
+	Update     bool     `yaml:"update"`
+	Include    []string `yaml:"include"`
+	Exclude    []string `yaml:"exclude"`
+	Force      bool     `yaml:"force"`
+	RemoteName string   `yaml:"remote_name"`
 }
 
 // getGitRoot returns the root directory of the Git repository
@@ -85,8 +87,12 @@ func execCommandWithRetry(cmd *exec.Cmd) error {
 }
 
 // checkIfBehind checks if the local branch is behind the remote branch
-func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, update bool, branch string) bool {
+func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Config) bool {
 	defer wg.Done()
+	branch := cfg.Branch
+	update := cfg.Update
+	force := cfg.Force
+	remoteName := cfg.RemoteName
 
 	gitRoot, err := getGitRoot(dir)
 	if err != nil {
@@ -96,9 +102,16 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, update
 
 	repoName := filepath.Base(gitRoot)
 
-	// Fetch the branches from the remote
-	cmd := exec.Command("git", "fetch", "origin")
-	cmd.Dir = gitRoot
+	// Check if the remote exists
+	cmd := exec.Command("git", "-C", gitRoot, "remote", "get-url", remoteName)
+	err = cmd.Run()
+	if err != nil {
+		results <- fmt.Sprintf("No remote named '%s' found for %s", remoteName, repoName)
+		return false
+	}
+
+	// Proceed with fetching the branches from the remote
+	cmd = exec.Command("git", "-C", gitRoot, "fetch", remoteName)
 	err = execCommandWithRetry(cmd)
 	if err != nil {
 		results <- fmt.Sprintf("Error fetching %s: %v", repoName, err)
@@ -106,8 +119,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, update
 	}
 
 	// Check if the branch exists locally
-	cmd = exec.Command("git", "rev-parse", "--verify", branch)
-	cmd.Dir = gitRoot
+	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--verify", branch)
 	err = cmd.Run()
 	if err != nil {
 		results <- fmt.Sprintf("Branch %s does not exist in repository %s", branch, repoName)
@@ -115,29 +127,28 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, update
 	}
 
 	// Check if the branch exists remotely
-	cmd = exec.Command("git", "rev-parse", "--verify", fmt.Sprintf("origin/%s", branch))
-	cmd.Dir = gitRoot
+	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--verify", fmt.Sprintf("origin/%s", branch))
 	err = cmd.Run()
 	if err != nil {
 		results <- fmt.Sprintf("Remote branch %s does not exist in repository %s", branch, repoName)
 		return false
 	}
 
-	cmd = exec.Command("git", "rev-list", "--count", fmt.Sprintf("%s..origin/%s", branch, branch))
-	cmd.Dir = gitRoot
+	// Check if the local branch is behind the remote branch
+	cmd = exec.Command("git", "-C", gitRoot, "rev-list", "--count", fmt.Sprintf("%s..origin/%s", branch, branch))
 	output, err := cmd.Output()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			results <- fmt.Sprintf("Error checking rev-list %s: %s (exit status %d)", repoName, string(exitError.Stderr), exitError.ExitCode())
+			return false
 		} else {
 			results <- fmt.Sprintf("Error checking rev-list %s: %v", repoName, err)
+			return false
 		}
-		return false
 	}
 	behindCount := strings.TrimSpace(string(output))
 
-	cmd = exec.Command("git", "log", "-1", "--pretty=format:%an (hash: %h, date: %ad) - %s", fmt.Sprintf("origin/%s", branch))
-	cmd.Dir = gitRoot
+	cmd = exec.Command("git", "-C", gitRoot, "log", "-1", "--pretty=format:%an (hash: %h, date: %ad) - %s", fmt.Sprintf("origin/%s", branch))
 	cmd.Env = append(os.Environ(), "LC_TIME=C") // Standardize date format
 	authorOutput, err := cmd.Output()
 	if err != nil {
@@ -146,17 +157,90 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, update
 	}
 	author := strings.TrimSpace(string(authorOutput))
 
+	// if behind
 	if behindCount != "0" {
 		result := fmt.Sprintf("%s%s is %s commits behind (%s).\n  Last commit: %s", lightRed, repoName, behindCount, branch, author)
+
 		if update {
+			// Check if there is an ongoing rebase or merge conflict
+			statusOutput, err := exec.Command("git", "-C", gitRoot, "status", "--porcelain").CombinedOutput()
+			if err != nil {
+				results <- fmt.Sprintf("Error checking status for %s\n%s", repoName, err)
+				return false
+			}
+
+			// Split the status output into individual lines
+			statusLines := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
+			conflictDetected := false
+			isRebase := false
+
+			// Check each line for conflict markers
+			for _, line := range statusLines {
+				if strings.HasPrefix(line, "U ") || strings.HasPrefix(line, "UU") ||
+					strings.HasPrefix(line, "UD") || strings.HasPrefix(line, "UA") {
+					conflictDetected = true
+					if strings.HasPrefix(line, "UU") {
+						isRebase = true
+					}
+					break
+				}
+			}
+
+			if conflictDetected {
+				if force {
+					result += fmt.Sprintf("\n%sForcing update...%s", lightRed, reset)
+					if isRebase {
+						cmd = exec.Command("git", "-C", gitRoot, "rebase", "--abort")
+						_ = cmd.Run()
+					} else {
+						cmd = exec.Command("git", "-C", gitRoot, "merge", "--abort")
+						_ = cmd.Run()
+					}
+				} else {
+					results <- fmt.Sprintf("%s%s has merge conflicts in file(s) or there's a rebase in "+
+						"progress. To update use --force to forcefully abort rebase and merge conflicts.%s", lightRed, repoName, reset)
+					return false
+				}
+			}
+
+			// Stash local changes
 			result += "\n  Stashing local changes..."
-			exec.Command("git", "-C", gitRoot, "stash").Run()
-			result += "\n  Pulling latest changes..."
-			exec.Command("git", "-C", gitRoot, "pull", "origin", branch).Run()
-			result += "\n  Applying stashed changes..."
-			exec.Command("git", "-C", gitRoot, "stash", "apply").Run()
+			cmd = exec.Command("git", "-C", gitRoot, "stash")
+			err = cmd.Run()
+			if err != nil {
+				results <- fmt.Sprintf("Error stashing changes in %s: %v", repoName, err)
+				return false
+			}
+
+			// Switch to the default branch
+			cmd = exec.Command("git", "-C", gitRoot, "checkout", branch)
+			err = cmd.Run()
+			if err != nil {
+				results <- fmt.Sprintf("Error checking out branch %s in repository %s: %v", branch, repoName, err)
+				return false
+			}
+
+			// Reset the default branch to match the remote
+			result += "\n  Resetting branch to match remote..."
+			cmd = exec.Command("git", "-C", gitRoot, "reset", "--hard", fmt.Sprintf("%s/%s", remoteName, branch))
+			err = cmd.Run()
+			if err != nil {
+				results <- fmt.Sprintf("Error resetting branch %s to %s/%s in repository %s: %v", branch, remoteName, branch, repoName, err)
+				return false
+			}
+
+			// Reapply the stash
+			result += "\n  Reapplying stashed changes..."
+			cmd = exec.Command("git", "-C", gitRoot, "stash", "apply")
+			err = cmd.Run()
+			if err != nil {
+				results <- fmt.Sprintf("Error applying stash in %s: %v", repoName, err)
+				return false
+			}
+
 			result += fmt.Sprintf("\n  %sRepository updated successfully!%s", lightGreen, reset)
 		}
+
 		results <- result + reset
 		return true
 	} else {
@@ -166,8 +250,8 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, update
 }
 
 // runGitLog runs the git log command to show the complete list of changes
-func runGitLog(dir string, branch string) error {
-	cmd := exec.Command("git", "log", fmt.Sprintf("%s..origin/%s", branch, branch))
+func runGitLog(dir, remoteName, branch string) error {
+	cmd := exec.Command("git", "log", fmt.Sprintf("%s..%s/%s", branch, remoteName, branch))
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -203,6 +287,7 @@ func loadConfig(configPath string) (Config, error) {
 		"update":  true,
 		"include": true,
 		"exclude": true,
+		"force":   true,
 	}
 
 	var rawConfig map[string]interface{}
@@ -245,6 +330,8 @@ func showUsage() {
 	fmt.Println("  --update, -u      Automatically update repositories that are behind")
 	fmt.Println("  --branch, -b      Specify the branch to check (default: main)")
 	fmt.Println("  --log, -l         Show the complete list of changes using git log")
+	fmt.Println("  --force, -f       Forcefully abort rebase and merge conflicts to update")
+	fmt.Println("  --remote, -r      Remote name (default: origin)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println()
@@ -316,6 +403,10 @@ func main() {
 	branchShort := flag.String("b", "main", "Specify the branch to check (short)")
 	log := flag.Bool("log", false, "Show the complete list of changes using git log")
 	logShort := flag.Bool("l", false, "Show the complete list of changes using git log (short)")
+	force := flag.Bool("force", false, "Forcefully abort rebase and merge conflicts to update")
+	forceShort := flag.Bool("f", false, "Forcefully abort rebase and merge conflicts to update (short)")
+	remote := flag.String("remote", "origin", "Specify the remote name")
+	remoteShort := flag.String("r", "origin", "Specify the remote name (short)")
 
 	flag.Parse()
 
@@ -326,10 +417,12 @@ func main() {
 
 	// Default configuration
 	config := Config{
-		Branch:  "main",
-		Update:  false,
-		Include: []string{},
-		Exclude: []string{},
+		Branch:     "main",
+		Update:     false,
+		Include:    []string{},
+		Exclude:    []string{},
+		Force:      false,
+		RemoteName: "origin",
 	}
 
 	currentDir, err := os.Getwd()
@@ -352,6 +445,10 @@ func main() {
 		config.Update = loadedConfig.Update
 		config.Include = loadedConfig.Include
 		config.Exclude = loadedConfig.Exclude
+		if loadedConfig.RemoteName != "" {
+			config.RemoteName = loadedConfig.RemoteName
+		}
+		config.Force = loadedConfig.Force
 	}
 
 	// Override config with command line flags
@@ -369,12 +466,26 @@ func main() {
 		config.Update = *updateShort
 	}
 
+	if *force {
+		config.Force = *force
+	}
+	if *forceShort {
+		config.Force = *forceShort
+	}
+
+	if *remote != "origin" {
+		config.RemoteName = *remote
+	}
+	if *remoteShort != "origin" {
+		config.RemoteName = *remoteShort
+	}
+
 	if *log || *logShort {
 		if !isGitRepository(currentDir) {
 			fmt.Printf("Error: %s is not a Git repository\n", currentDir)
 			os.Exit(1)
 		}
-		err := runGitLog(currentDir, config.Branch)
+		err := runGitLog(currentDir, config.RemoteName, config.Branch)
 		if err != nil {
 			fmt.Printf("Error running git log: %v\n", err)
 			os.Exit(1)
@@ -388,7 +499,7 @@ func main() {
 			var wg sync.WaitGroup
 			results := make(chan string, 1)
 			wg.Add(1)
-			checkIfBehind(currentDir, &wg, results, config.Update, config.Branch)
+			checkIfBehind(currentDir, &wg, results, config)
 			wg.Wait()
 			close(results)
 
@@ -417,7 +528,7 @@ func main() {
 				repoName := filepath.Base(dirPath)
 				if isIncluded(repoName, config.Include, config.Exclude) {
 					wg.Add(1)
-					go checkIfBehind(dirPath, &wg, results, config.Update, config.Branch)
+					go checkIfBehind(dirPath, &wg, results, config)
 				}
 			}
 		}
