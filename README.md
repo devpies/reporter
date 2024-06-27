@@ -73,10 +73,10 @@ This approach allows for efficient management and synchronization of all reposit
 
 ```
 $ rp
-Checking all repositories for updates against git: main
+Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
-mvp-service is 13 commits behind (main). Last commit: Lois Lane
+mvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.
 (hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context
 
 Up-to-Date Repositories:
@@ -94,10 +94,10 @@ To automatically update repositories that are behind:
 ```
 $ rp --update
 
-Checking all repositories for updates against git: main
+Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
-mvp-service is 13 commits behind (main). Last commit: Lois Lane
+mvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.
 (hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context
 Stashing local changes...
 Pulling latest changes...
@@ -119,14 +119,16 @@ In a Git repository, you can show the complete list of changes in the default re
 ```
 $ rp --log
 
-commit abc123
-Author: Lois Lane
+commit 2743ff76bbdc4affba6b39a8866fd7ccb8db8190 (origin/main)
+Merge: 915051a 2e0a935
+Author: Lois Lane <lois@lane.io>
 Date:   Fri Nov 24 10:56:42 2023 +0100
 
-    fix: provide db transaction context
-
-commit def456
-Author: Clark Kent
+    Merge pull request #2 from clarkkent/auth_module
+    Auth Module
+    
+commit 2e0a935a9817bdc39badefadce2365129f35fa17 (HEAD, origin/branch3, auth_module)
+Author: Clark Kent <clark@kent.io>
 Date:   Mon Dec 01 10:56:42 2023 +0100
 
     feat: add new authentication module
@@ -138,10 +140,10 @@ To check for updates against a different branch:
 ```
 $ rp --branch develop
 
-Checking all repositories for updates against git: develop
+Checking Repositories For Updates. git: (origin/develop)
 
 Outdated Repositories:
-mvp-service is 7 commits behind (develop). Last commit: Clark Kent
+mvp-service is 7 commits behind (origin/develop). Last commit author: Clark Kent.
 (hash: def456, date: Mon Dec 01 10:56:42 2023 +0100) - feat: add new authentication module
 
 Up-to-Date Repositories:
@@ -159,10 +161,10 @@ To check for updates against a different branch and automatically update reposit
 ```
 $ rp --branch develop --update
 
-Checking all repositories for updates against git: develop
+Checking Repositories For Updates. git: (origin/develop)
 
 Outdated Repositories:
-mvp-service is 7 commits behind (develop). Last commit: Clark Kent
+mvp-service is 7 commits behind (origin/develop). Last commit author: Clark Kent.
 (hash: def456, date: Mon Dec 01 10:56:42 2023 +0100) - feat: add new authentication module
 Stashing local changes...
 Pulling latest changes...
