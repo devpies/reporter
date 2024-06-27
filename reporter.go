@@ -41,7 +41,7 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // ANSI escape codes.
@@ -428,6 +428,8 @@ func findConfigFile(currentDir string) (string, error) {
 
 // showUsage displays usage information.
 func showUsage() {
+	commitHeader := "  %smvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.\n"
+	commitMessage := "(hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context%s"
 	fmt.Println("Usage: rp (reporter) [OPTIONS]")
 	fmt.Println()
 	fmt.Println("Reporter recursively reports and resolves drifts across multiple git repositories.")
@@ -445,16 +447,16 @@ func showUsage() {
 	fmt.Println("In a Git repository:")
 	fmt.Printf("  $ rp\n")
 	fmt.Println("  Checking Repository For Updates git: (origin/main)")
-	fmt.Printf("  %smvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.\n", lightRed)
-	fmt.Printf("  (hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context%s", reset)
+	fmt.Printf(commitHeader, lightRed)
+	fmt.Printf(commitMessage, reset)
 	fmt.Println()
 	fmt.Println("In a directory containing multiple Git repositories:")
 	fmt.Printf("  $ rp\n")
 	fmt.Println("  Checking Repositories For Updates. git: (origin/main)")
 	fmt.Println()
 	fmt.Println("  Outdated Repositories:")
-	fmt.Printf("  %smvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.\n", lightRed)
-	fmt.Printf("  (hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context%s", reset)
+	fmt.Printf(commitHeader, lightRed)
+	fmt.Printf(commitMessage, reset)
 	fmt.Println()
 	fmt.Println("  Up-to-Date Repositories:")
 	fmt.Printf("  %smvp-frontend is up-to-date%s\n", lightGreen, reset)
@@ -468,8 +470,8 @@ func showUsage() {
 	fmt.Println("  Checking Repositories For Updates. git: (origin/main)")
 	fmt.Println()
 	fmt.Println("  Outdated Repositories:")
-	fmt.Printf("  %smvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.\n", lightRed)
-	fmt.Printf("  (hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context\n%s", reset)
+	fmt.Printf(commitHeader, lightRed)
+	fmt.Printf(commitMessage, reset)
 	fmt.Println("  Stashing local changes...")
 	fmt.Println("  Pulling latest changes...")
 	fmt.Println("  Applying stashed changes...")

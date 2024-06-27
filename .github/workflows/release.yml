@@ -33,12 +33,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install dependencies
-        run: go mod tidy
-
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.2
-          export PATH=$(go env GOPATH)/bin:$PATH
+        run: make install && go mod tidy
 
       - name: Run tests
         run: make test
