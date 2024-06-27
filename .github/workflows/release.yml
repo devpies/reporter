@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source ./scripts/install_dev.sh
+          make install
           go mod tidy
 
       - name: Run tests
