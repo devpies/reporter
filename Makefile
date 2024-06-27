@@ -9,11 +9,11 @@ fmt: ;@ ## Format Code
 .PHONY: fmt
 
 lint: ;@ ## Run Linter
-	@@golangci-lint run ./...
+	@golangci-lint run ./...
 .PHONY: lint
 
 test: lint fmt ;@ ## Run Tests
-	go test ./...
+	go test ./... -v
 .PHONY: test
 
 build: ;@ ## Run Build

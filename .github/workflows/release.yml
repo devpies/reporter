@@ -35,5 +35,5 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-#      - name: Run tests
-#        run: make test
+      - name: Run tests
+        run: make test

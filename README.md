@@ -20,7 +20,7 @@ mvp-tools is up-to-date
 
 ## Installation
 ### Prerequisites
-Ensure you have [Git](https://git-scm.com/downloads) and [Go](https://go.dev/dl/) installed on your machine.
+Ensure you have [Git](https://git-scm.com/downloads) and [Go](https://go.dev/dl/) 1.18 >= installed on your machine.
 
 ### Installing with go install
 You can install the binary directly using `go install`. Follow these steps:

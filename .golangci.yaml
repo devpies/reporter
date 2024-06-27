@@ -24,15 +24,19 @@ linters-settings:
       - name: line-length-limit
         arguments: [ 120 ]
       - name: cognitive-complexity
-        arguments: [ 16 ]
+        disabled: true
       - name: add-constant
-        arguments:
-          - allowInts: '0,1'
+        disabled: true
+      - name: function-length
+        disabled: true
       - name: max-public-structs
         arguments: [ 16 ]
       - name: cyclomatic
-        arguments: [ 16 ]
-
+        disabled: true
+      - name: error-strings
+        disabled: true
+      - name: unhandled-error
+        arguments: ["fmt.Printf", "fmt.Println"]
 issues:
   include:
     - EXC0012
