@@ -4,10 +4,10 @@ Reporter recursively reports and resolves drifts across multiple git repositorie
 
 ```
 $ rp
-Checking all repositories for updates against git: main
+Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
-mvp-service is 13 commits behind (main). Last commit: Lois Lane
+mvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.
 (hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context
 
 Up-to-Date Repositories:
