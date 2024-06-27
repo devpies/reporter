@@ -28,7 +28,7 @@ function GetGolangCILint() {
     echo "golangci-lint not found. Installing golangci-lint..."
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
       # Install golangci-lint for Linux
-      curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.1
+      curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin 1.59.1
       # Add GOPATH/bin to the PATH
       export PATH=$PATH:$(go env GOPATH)/bin
       echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.profile
@@ -41,7 +41,7 @@ function GetGolangCILint() {
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
         eval "$(/opt/homebrew/bin/brew shellenv)"
       fi
-      brew install golangci-lint
+      brew install golangci-lint@1.59.1
     fi
   fi
 }
