@@ -12,7 +12,7 @@ lint: ;@ ## Run Linter
 	@golangci-lint run ./...
 .PHONY: lint
 
-test: install lint fmt ;@ ## Run Tests
+test: lint fmt ;@ ## Run Tests
 	go test ./... -v
 .PHONY: test
 
