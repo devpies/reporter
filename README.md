@@ -267,11 +267,17 @@ stashed changes.
 
 ## Contributing
 
-Create an an issue if you find a bug with reporter, or
-you can create a pull request.
+To contribute, create an issue for bugs or submit a pull request.
 
-The Makefile has targets for common development tasks.
+Use the Makefile for common development tasks:
+
 ```
 make install
 make test
 ```
+
+
+
+
+
+
