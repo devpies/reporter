@@ -264,3 +264,14 @@ messages.
 5. **Selective Updates**: Allows selective checking and updating of specific repositories via include/exclude lists.
 6. **Stashing and Applying Changes**: Automatically stashes local changes, pulls the latest updates, and reapplies the 
 stashed changes.
+
+## Contributing
+
+Create an an issue if you find a bug with reporter, or
+you can create a pull request.
+
+The Makefile has targets for common development tasks.
+```
+make install
+make test
+```

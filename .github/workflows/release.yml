@@ -33,7 +33,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install dependencies
-        run: make install && go mod tidy
+        run: |
+          source ./scripts/install_dev.sh
+          go mod tidy
 
       - name: Run tests
         run: make test
