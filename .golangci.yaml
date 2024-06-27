@@ -1,0 +1,46 @@
+linters:
+  disable-all: true
+  enable:
+    - goconst
+    - godot
+    - godox
+    - gofmt
+    - goimports
+    - gosec
+    - ineffassign
+    - misspell
+    - prealloc
+    - revive
+    - typecheck
+    - unconvert
+    - whitespace
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/devpies/reporter
+  revive:
+    enable-all-rules: true
+    rules:
+      - name: line-length-limit
+        arguments: [ 120 ]
+      - name: cognitive-complexity
+        disabled: true
+      - name: add-constant
+        disabled: true
+      - name: function-length
+        disabled: true
+      - name: max-public-structs
+        arguments: [ 16 ]
+      - name: cyclomatic
+        disabled: true
+      - name: error-strings
+        disabled: true
+      - name: unhandled-error
+        arguments: ["fmt.Printf", "fmt.Println"]
+issues:
+  include:
+    - EXC0012
+    - EXC0015
+
+run:
+  tests: false
