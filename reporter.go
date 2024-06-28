@@ -32,6 +32,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"flag"
 	"fmt"
@@ -190,14 +191,13 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 	defer wg.Done()
 
 	var (
-		err    error
-		params []any
+		branch     = cfg.Branch
+		update     = cfg.Update
+		force      = cfg.Force
+		remoteName = cfg.RemoteName
+		params     []any
+		err        error
 	)
-
-	branch := cfg.Branch
-	update := cfg.Update
-	force := cfg.Force
-	remoteName := cfg.RemoteName
 
 	// Find root directory of repository.
 	gitRoot, err := getGitRoot(dir)
@@ -332,60 +332,42 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 				}
 			}
 
+			// Stash local changes.
 			if string(statusOutput) != "" {
-				// Stash local changes.
 				result += "\n Stashing local changes"
-				cmd = exec.Command("git", "-C", gitRoot, "stash")
-				err = cmd.Run()
-				if err != nil {
+				if !stashChanges(gitRoot) {
 					results <- fmt.Sprintf("%sError stashing changes in %s: %v%s", lightRed, repoName, err, reset)
 					return false
 				}
 			}
 
 			// Switch to the default branch.
-			cmd = exec.Command("git", "-C", gitRoot, "checkout", branch)
-			err = cmd.Run()
-			if err != nil {
+			if !checkoutBranch(gitRoot, branch) {
 				params = []any{lightRed, branch, repoName, err, reset}
 				results <- fmt.Sprintf("%sError checking out branch %s in repository %s: %v%s", params...)
 				return false
 			}
 
-			// Reset the local default branch to match the remote.
+			// Pull the latest changes from the remote branch.
 			result += "\n Pulling latest changes"
-			cmd = exec.Command("git", "-C", gitRoot, "reset", "--hard", fmt.Sprintf("%s/%s", remoteName, branch))
-			err = cmd.Run()
-			if err != nil {
-				params = []any{lightRed, branch, remoteName, branch, repoName, err, reset}
-				results <- fmt.Sprintf(
-					"%sError resetting branch %s to %s/%s in repository %s: %v%s", params...)
+			if !pullLatest(gitRoot, remoteName, branch) {
+				params = []any{lightRed, remoteName, branch, repoName, err, reset}
+				results <- fmt.Sprintf("%sError pulling %s/%s in repository %s: %v%s", params...)
 				return false
 			}
 
-			// Check if there are any stashed changes.
-			cmd = exec.Command("git", "-C", gitRoot, "stash", "list")
-			var stashListOutput []byte
-			stashListOutput, err = cmd.Output()
-			if err != nil {
-				results <- fmt.Sprintf("%sError listing stashes in %s: %v%s", lightRed, repoName, err, reset)
-				return false
-			}
-
-			// Apply stashes if they exist.
-			if len(stashListOutput) > 0 {
+			// Reapply the reporter stash.
+			if isReporterStash(gitRoot, branch) {
 				result += "\n Applying stashed changes"
-				cmd = exec.Command("git", "-C", gitRoot, "stash", "apply")
-				err = cmd.Run()
-				if err != nil {
-					results <- fmt.Sprintf("%sError applying stash in %s: %v%s", lightRed, repoName, err, reset)
+				if !applyStash(gitRoot) {
+					results <- fmt.Sprintf("%sError applying stash%s", lightRed, reset)
 					return false
 				}
 			}
 
-			// Success.
 			result += fmt.Sprintf("\n%s %s is up-to-date%s", lightGreen, repoName, reset)
 		}
+
 		// Merge actions taken and potentially a success message into results.
 		results <- result + reset
 		return true
@@ -405,12 +387,60 @@ func runGitLog(dir, remoteName, branch string) error {
 	return cmd.Run()
 }
 
+// stashChanges stashes any uncommitted changes.
+func stashChanges(gitRoot string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "stash", "push", "-m", "Stashed by reporter")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+// applyStash reapplies the stash made by the reporter.
+func applyStash(gitRoot string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "stash", "pop")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+// pullLatest pulls the latest changes from the remote branch.
+func pullLatest(gitRoot, remoteName, branch string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "pull", remoteName, branch)
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+// checkoutBranch checkouts the specified branch in the git root.
+func checkoutBranch(gitRoot, branch string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "checkout", branch)
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
 // isGitRepository checks if a directory is a Git repository.
 func isGitRepository(dir string) bool {
 	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = dir
 	err := cmd.Run()
 	return err == nil
+}
+
+// isReporterStash checks if the most recent stash was stashed by reporter.
+func isReporterStash(gitRoot, branch string) bool {
+	var out bytes.Buffer
+	cmd := exec.Command("git", "-C", gitRoot, "stash", "list")
+	cmd.Stdout = &out
+	_ = cmd.Run()
+	if strings.Contains(out.String(), fmt.Sprintf("stash@{0}: On %s: Stashed by reporter", branch)) {
+		return true
+	}
+	return false
 }
 
 // loadConfig reads the configuration file.
