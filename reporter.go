@@ -32,8 +32,10 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
+	"math/big"
 	"net/url"
 	"os"
 	"os/exec"
@@ -42,6 +44,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sony/gobreaker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,6 +65,22 @@ type Config struct {
 	RemoteName string   `yaml:"remote_name"`
 }
 
+// Global circuit breaker instance.
+var cb *gobreaker.CircuitBreaker
+
+func init() {
+	settings := gobreaker.Settings{
+		Name:        "GitCommandCircuitBreaker",
+		MaxRequests: 5,
+		Interval:    time.Minute,
+		Timeout:     time.Minute,
+		ReadyToTrip: func(counts gobreaker.Counts) bool {
+			return counts.ConsecutiveFailures > 3
+		},
+	}
+	cb = gobreaker.NewCircuitBreaker(settings)
+}
+
 // getGitRoot returns the root directory of the Git repository.
 func getGitRoot(dir string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
@@ -73,26 +92,50 @@ func getGitRoot(dir string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// execCommandWithRetry retries the command a number of times.
+// generateRandomInt returns a random integer between 0 and max-1 using crypto/rand.
+func generateRandomInt(max int64) (int64, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(max))
+	if err != nil {
+		return 0, err
+	}
+	return n.Int64(), nil
+}
+
+// execCommandWithRetry retries the command a number of times with exponential backoff and jitter.
 func execCommandWithRetry(cmd *exec.Cmd, gitRoot string, remoteName string, maxAttempts int) error {
 	var (
 		remoteURL string
 		err       error
 	)
 
-	for attempts := 1; attempts <= maxAttempts; attempts++ {
-		time.Sleep(time.Millisecond * 50)
-		err = cmd.Run()
-		if err == nil {
-			return nil
+	// Circuit Breaker: Avoids repeatedly attempting operations that are likely to fail.
+	_, err = cb.Execute(func() (any, error) {
+		for attempts := 1; attempts <= maxAttempts; attempts++ {
+			err = cmd.Run()
+			if err == nil {
+				return nil, nil
+			}
+
+			if attempts == maxAttempts {
+				// Write error message.
+				remoteURL, err = getRemoteURL(gitRoot, remoteName)
+				return nil, errRepoDoesNotExist(remoteURL, err)
+			}
+
+			// Exponential backoff with jitter.
+			// Exponential Backoff: Helps in reducing the load during retries.
+			// Jitter: Prevents synchronized retries, "thundering herd" problem.
+			var jitter int64
+			jitter, err = generateRandomInt(100)
+			if err != nil {
+				return nil, err
+			}
+			sleepDuration := time.Millisecond * time.Duration(50*(1<<attempts)+jitter)
+			time.Sleep(sleepDuration)
 		}
-		if attempts == maxAttempts {
-			// Write error message.
-			remoteURL, err = getRemoteURL(gitRoot, remoteName)
-			return errRepoDoesNotExist(remoteURL, err)
-		}
-	}
-	return fmt.Errorf("Command failed after %d attempts.", maxAttempts)
+		return nil, fmt.Errorf("Command failed after %d attempts.", maxAttempts)
+	})
+	return err
 }
 
 // errRepoDoesNotExist sends formatted error is related to a non-existing remote repository.
@@ -232,7 +275,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 			commitText = "commit"
 		}
 		params = []any{lightRed, repoName, behindCount, commitText, commitDetails, reset}
-		result := fmt.Sprintf("%s%s is %s %s behind\nLast commit by %s%s", params...)
+		result := fmt.Sprintf("%s\n%s is %s %s behind\nLast commit by %s%s", params...)
 
 		if update {
 			result += "\n:."
@@ -436,8 +479,8 @@ func findConfigFile(currentDir string) (string, error) {
 
 // showUsage displays usage information.
 func showUsage() {
-	commitHeader := "  %smvp-service is 13 commits behind\n  Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100\n"
-	commitMessage := "  abc123 fix: provide db transaction context\n%s"
+	header := "  %s\n  mvp-service is 13 commits behind\n  Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100\n"
+	message := "  abc123 fix: provide db transaction context\n%s"
 	fmt.Println("Usage: rp (reporter) [OPTIONS]")
 	fmt.Println()
 	fmt.Println("Reporter recursively reports and resolves drifts across multiple git repositories.")
@@ -453,20 +496,20 @@ func showUsage() {
 	fmt.Println("Examples:")
 	fmt.Println()
 	fmt.Println("In a Git repository:")
-	fmt.Printf("  $ rp\n")
+	fmt.Printf("  $ rp\n\n")
 	fmt.Println("  Checking Repository For Updates git: (origin/main)")
-	fmt.Printf(commitHeader, lightRed)
-	fmt.Printf(commitMessage, reset)
+	fmt.Printf(header, lightRed)
+	fmt.Printf(message, reset)
 	fmt.Println()
 	fmt.Println("In a directory containing multiple Git repositories:")
-	fmt.Printf("  $ rp\n")
+	fmt.Printf("  $ rp\n\n")
 	fmt.Println("  Checking Repositories For Updates. git: (origin/main)")
 	fmt.Println()
 	fmt.Println("  Outdated Repositories:")
-	fmt.Printf(commitHeader, lightRed)
-	fmt.Printf(commitMessage, reset)
+	fmt.Printf(header, lightRed)
+	fmt.Printf(message, reset)
 	fmt.Println()
-	fmt.Println("  Up-to-Date Repositories:")
+	fmt.Printf("  Up-to-Date Repositories:\n\n")
 	fmt.Printf("  %smvp-frontend is up-to-date%s\n", lightGreen, reset)
 	fmt.Printf("  %smvp-backend-go is up-to-date%s\n", lightGreen, reset)
 	fmt.Printf("  %smvp-backend-python is up-to-date%s\n", lightGreen, reset)
@@ -474,19 +517,19 @@ func showUsage() {
 	fmt.Printf("  %smvp-tools is up-to-date%s\n", lightGreen, reset)
 	fmt.Println()
 	fmt.Println("Updating a directory containing multiple Git repositories:")
-	fmt.Printf("  $ rp -u\n")
+	fmt.Printf("  $ rp -u\n\n")
 	fmt.Println("  Checking Repositories For Updates. git: (origin/main)")
 	fmt.Println()
 	fmt.Println("  Outdated Repositories:")
-	fmt.Printf(commitHeader, lightRed)
-	fmt.Printf(commitMessage, reset)
+	fmt.Printf(header, lightRed)
+	fmt.Printf(message, reset)
 	fmt.Println("  :.")
 	fmt.Println("   Stashing local changes")
 	fmt.Println("   Pulling latest changes")
 	fmt.Println("   Applying stashed changes")
 	fmt.Printf("   %smvp-service is up-to-date%s\n", lightGreen, reset)
 	fmt.Println()
-	fmt.Println("  Up-to-Date Repositories:")
+	fmt.Printf("  Up-to-Date Repositories:\n\n")
 	fmt.Printf("  %smvp-frontend is up-to-date%s\n", lightGreen, reset)
 	fmt.Printf("  %smvp-backend-go is up-to-date%s\n", lightGreen, reset)
 	fmt.Printf("  %smvp-backend-python is up-to-date%s\n", lightGreen, reset)
@@ -625,7 +668,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Checking Repositories For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
+	fmt.Printf("\nChecking Repositories For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
 
 	files, err := os.ReadDir(currentDir)
 	if err != nil {
@@ -676,7 +719,7 @@ func main() {
 	}
 
 	if len(upToDateRepos) > 0 {
-		fmt.Println("Up-to-Date Repositories:")
+		fmt.Printf("Up-to-Date Repositories:\n\n")
 		for _, repo := range upToDateRepos {
 			fmt.Println(repo)
 		}
