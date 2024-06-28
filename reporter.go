@@ -40,6 +40,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -80,6 +81,7 @@ func execCommandWithRetry(cmd *exec.Cmd, gitRoot string, remoteName string, maxA
 	)
 
 	for attempts := 1; attempts <= maxAttempts; attempts++ {
+		time.Sleep(time.Millisecond * 50)
 		err = cmd.Run()
 		if err == nil {
 			return nil
@@ -172,7 +174,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 	}
 
 	// Proceed with fetching the branches from the remote.
-	maxAttempts := 3
+	maxAttempts := 30
 	cmd = exec.Command("git", "-C", gitRoot, "fetch", remoteName)
 	err = execCommandWithRetry(cmd, gitRoot, remoteName, maxAttempts)
 	if err != nil {
