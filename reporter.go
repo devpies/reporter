@@ -2,33 +2,6 @@
 // from their remote branches and optionally resolve them by updating the local repositories.
 // The tool ensures that local repositories are synchronized with their remote counterparts,
 // making it easier for developers to manage multiple repositories and keep them up-to-date.
-//
-// Unique Benefits:
-//
-//  1. **Automation and Convenience**: Reporter automates the process of checking for and
-//     resolving drifts in multiple repositories, saving time and reducing manual errors.
-//
-//  2. **Batch Processing**: Unlike using Git commands individually for each repository,
-//     Reporter can recursively check and update multiple repositories in a single command.
-//
-//  3. **Centralized Configuration**: The .rprc configuration file allows users to specify
-//     settings like branches to check, whether to auto-update, and which repositories to
-//     include or exclude. This centralizes the configuration and makes it easy to manage.
-//
-//  4. **Detailed Reporting**: Reporter provides detailed commit information, including
-//     commit hashes, authors, dates, and messages, offering comprehensive insights into
-//     changes that have occurred upstream.
-//
-//  5. **Selective Updates**: With include/exclude lists, users can selectively check and
-//     update specific repositories, providing greater control over the update process.
-//
-//  6. **Stashing and Applying Changes**: Reporter can automatically stash local changes,
-//     pull the latest updates, and reapply the stashed changes, ensuring that local work
-//     is not lost during the update process.
-//
-// These features make Reporter an invaluable tool for developers working with multiple Git
-// repositories, particularly in environments where keeping repositories synchronized with
-// their remote counterparts is critical.
 package main
 
 import (
@@ -48,6 +21,9 @@ import (
 	"github.com/sony/gobreaker"
 	"gopkg.in/yaml.v3"
 )
+
+// MaxFetchBranchAttempts represents a maximum reties to fetch branches.
+const MaxFetchBranchAttempts = 30
 
 // ANSI escape codes.
 const (
@@ -80,26 +56,6 @@ func init() {
 		},
 	}
 	cb = gobreaker.NewCircuitBreaker(settings)
-}
-
-// getGitRoot returns the root directory of the Git repository.
-func getGitRoot(dir string) (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	cmd.Dir = dir
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-// generateRandomInt returns a random integer between 0 and max-1 using crypto/rand.
-func generateRandomInt(max int64) (int64, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(max))
-	if err != nil {
-		return 0, err
-	}
-	return n.Int64(), nil
 }
 
 // execCommandWithRetry retries the command a number of times with exponential backoff and jitter.
@@ -139,6 +95,26 @@ func execCommandWithRetry(cmd *exec.Cmd, gitRoot string, remoteName string, maxA
 	return err
 }
 
+// getGitRoot returns the root directory of the Git repository.
+func getGitRoot(dir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// generateRandomInt returns a random integer between 0 and max-1 using crypto/rand.
+func generateRandomInt(max int64) (int64, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(max))
+	if err != nil {
+		return 0, err
+	}
+	return n.Int64(), nil
+}
+
 // errRepoDoesNotExist sends formatted error is related to a non-existing remote repository.
 func errRepoDoesNotExist(remoteURL string, err error) error {
 	var user, repo string
@@ -170,16 +146,19 @@ func parseGitRemoteURL(remoteURL string) (user string, repo string, err error) {
 		remoteURL = strings.Replace(remoteURL, ":", "/", 1)
 		remoteURL = strings.Replace(remoteURL, "git@", "https://", 1)
 	}
+
 	// Parse url.
 	u, err := url.Parse(remoteURL)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid URL: %s", remoteURL)
 	}
+
 	// Split the path into segments and find the user and repo names.
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	if len(parts) < 2 {
 		return "", "", fmt.Errorf("invalid URL path: %s", u.Path)
 	}
+
 	// Retrieve user and repo.
 	user = parts[len(parts)-2]
 	repo = strings.TrimSuffix(parts[len(parts)-1], ".git")
@@ -209,103 +188,61 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 	repoName := filepath.Base(gitRoot)
 
 	// Check if the remote exists.
-	cmd := exec.Command("git", "-C", gitRoot, "remote", "get-url", remoteName)
-	err = cmd.Run()
-	if err != nil {
+	if !hasRemoteURL(gitRoot, remoteName) {
 		results <- fmt.Sprintf("%sNo remote named '%s' found for %s%s", lightRed, remoteName, repoName, reset)
 		return false
 	}
 
 	// Proceed with fetching the branches from the remote.
-	maxAttempts := 30
-	cmd = exec.Command("git", "-C", gitRoot, "fetch", remoteName)
-	err = execCommandWithRetry(cmd, gitRoot, remoteName, maxAttempts)
-	if err != nil {
-		results <- fmt.Sprintf("%sError fetching %s. %v%s", lightRed, repoName, err, reset)
+	if fErr := fetchBranches(gitRoot, remoteName); err != nil {
+		results <- fmt.Sprintf("%sError fetching %s. %v%s", lightRed, repoName, fErr, reset)
 		return false
 	}
 
 	// Check if the branch exists locally.
-	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--verify", branch)
-	err = cmd.Run()
-	if err != nil {
+	if !branchExistsLocally(gitRoot, branch) {
 		results <- fmt.Sprintf("Branch %s does not exist in repository %s", branch, repoName)
 		return false
 	}
 
 	// Check if the branch exists remotely.
-	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--verify", fmt.Sprintf("%s/%s", remoteName, branch))
-	err = cmd.Run()
-	if err != nil {
+	if !branchExistsRemotely(gitRoot, remoteName, branch) {
 		results <- fmt.Sprintf("Remote branch %s does not exist in repository %s", branch, repoName)
 		return false
 	}
 
 	// Check if the local branch is behind the remote branch.
-	branchExpression := fmt.Sprintf("%s..%s/%s", branch, remoteName, branch)
-	cmd = exec.Command("git", "-C", gitRoot, "rev-list", "--count", branchExpression)
-	output, err := cmd.Output()
+	behindCount, err := commitsBehind(gitRoot, branch, remoteName, repoName)
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			params = []any{lightRed, repoName, string(exitError.Stderr), exitError.ExitCode(), reset}
-			results <- fmt.Sprintf("%sError checking rev-list %s: %s (exit status %d)%s", params...)
-			return false
-		}
-		results <- fmt.Sprintf("%sError checking rev-list %s: %v%s", lightRed, repoName, err, reset)
-		return false
-	}
-	behindCount := strings.TrimSpace(string(output))
-	logFormat := "--pretty=format:%an %ad\n%h %s"
-
-	// Retrieve last commit ahead of local and format it.
-	cmd = exec.Command("git", "-C", gitRoot, "log", "-1", logFormat)
-	cmd.Env = append(os.Environ(), "LC_TIME=C") // Standardize date format
-	authorCommitOutput, err := cmd.Output()
-	if err != nil {
-		results <- fmt.Sprintf("%sError checking last commit author %s: %v%s", lightRed, repoName, err, reset)
+		results <- err.Error()
 		return false
 	}
 
-	commitDetails := strings.TrimSpace(string(authorCommitOutput))
+	// Reporter find the last commit for the report.
+	lastCommitInfo, err := lastCommit(gitRoot, repoName)
+	if err != nil {
+		results <- err.Error()
+		return false
+	}
 
 	// If repository is outdated continue processing.
 	if behindCount != "0" {
-		var commitText = "commits"
-		if behindCount == "1" {
-			commitText = "commit"
-		}
-		params = []any{lightRed, repoName, behindCount, commitText, commitDetails, reset}
+		params = []any{lightRed, repoName, behindCount, commitText(behindCount), lastCommitInfo, reset}
 		result := fmt.Sprintf("%s\n%s is %s %s behind\nLast commit by %s%s", params...)
 
 		if update {
 			result += "\n:."
-			// Check if there is an ongoing rebase or merge conflict.
-			var statusOutput []byte
-			statusOutput, err = exec.Command("git", "-C", gitRoot, "status", "--porcelain").CombinedOutput()
-			if err != nil {
-				results <- fmt.Sprintf("%sError checking status for %s\n%s%s", lightRed, repoName, err, reset)
+			statusLines, statusOutput, sErr := status(gitRoot)
+			if sErr != nil {
+				results <- fmt.Sprintf("%sError checking status for %s\n%s%s", lightRed, repoName, sErr, reset)
 				return false
 			}
 
-			// Split the status output into individual lines.
-			statusLines := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
-			conflictDetected := false
-			isRebase := false
+			// Check if there is an ongoing rebase or merge conflict.
+			isConflict, isRebase := hasConflicts(statusLines)
 
-			// Check each line for conflict markers.
-			for _, line := range statusLines {
-				if strings.HasPrefix(line, "U ") || strings.HasPrefix(line, "UU") ||
-					strings.HasPrefix(line, "UD") || strings.HasPrefix(line, "UA") {
-					conflictDetected = true
-					if strings.HasPrefix(line, "UU") {
-						isRebase = true
-					}
-					break
-				}
-			}
-
-			if conflictDetected {
-				// Don't force the update
+			if isConflict {
+				// Don't force the update.
 				if !force {
 					errorMsg := "has merge conflicts in file(s) or there's a rebase in progress"
 					solution := "To update anyway use --update --force. This aborts rebase and merge conflicts"
@@ -313,50 +250,42 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 					return false
 				}
 
-				// Force the update.
+				// Force the update by aborting processes.
 				result += fmt.Sprintf("\n%s Forcing update...%s", lightRed, reset)
 				if isRebase {
-					// Rebase Abort.
-					cmd = exec.Command("git", "-C", gitRoot, "rebase", "--abort")
-					if err = cmd.Run(); err != nil {
-						results <- fmt.Sprintf("%sError aborting rebase %s: %v%s", lightRed, repoName, err, reset)
+					if abortRebase(gitRoot) {
+						results <- fmt.Sprintf("%sError aborting rebase %s%s", lightRed, repoName, reset)
 						return false
 					}
 				} else {
-					// Merge Abort.
-					cmd = exec.Command("git", "-C", gitRoot, "merge", "--abort")
-					if err = cmd.Run(); err != nil {
-						results <- fmt.Sprintf("%sError aborting merge %s: %v%s", lightRed, repoName, err, reset)
+					if abortMerge(gitRoot) {
+						results <- fmt.Sprintf("%sError aborting merge %s%s", lightRed, repoName, reset)
 						return false
 					}
 				}
 			}
 
-			// Stash local changes.
 			if string(statusOutput) != "" {
 				result += "\n Stashing local changes"
 				if !stashChanges(gitRoot) {
-					results <- fmt.Sprintf("%sError stashing changes in %s: %v%s", lightRed, repoName, err, reset)
+					results <- fmt.Sprintf("%sError stashing changes in %s%s", lightRed, repoName, reset)
 					return false
 				}
 			}
 
-			// Switch to the default branch.
 			if !checkoutBranch(gitRoot, branch) {
-				params = []any{lightRed, branch, repoName, err, reset}
-				results <- fmt.Sprintf("%sError checking out branch %s in repository %s: %v%s", params...)
+				params = []any{lightRed, branch, repoName, reset}
+				results <- fmt.Sprintf("%sError checking out branch %s in repository %s%s", params...)
 				return false
 			}
 
-			// Pull the latest changes from the remote branch.
 			result += "\n Pulling latest changes"
 			if !pullLatest(gitRoot, remoteName, branch) {
-				params = []any{lightRed, remoteName, branch, repoName, err, reset}
-				results <- fmt.Sprintf("%sError pulling %s/%s in repository %s: %v%s", params...)
+				params = []any{lightRed, remoteName, branch, repoName, reset}
+				results <- fmt.Sprintf("%sError pulling %s/%s in repository %s%s", params...)
 				return false
 			}
 
-			// Reapply the reporter stash.
 			if isReporterStash(gitRoot, branch) {
 				result += "\n Applying stashed changes"
 				if !applyStash(gitRoot) {
@@ -368,13 +297,130 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 			result += fmt.Sprintf("\n%s %s is up-to-date%s", lightGreen, repoName, reset)
 		}
 
-		// Merge actions taken and potentially a success message into results.
+		// Report actions taken.
 		results <- result + reset
 		return true
 	}
-	// Repository is up-to-date.
+	// Already up-to-date.
 	results <- fmt.Sprintf("%s%s is up-to-date%s", lightGreen, repoName, reset)
 	return false
+}
+
+const (
+	// Unmerged means the file is unmerged, meaning there is a conflict.
+	Unmerged = "U "
+	// UnmergedAdded means the file is unmerged, and the file on the other branch was added.
+	UnmergedAdded = "UA"
+	// UnmergedDeleted means the file is unmerged, and the file on the current branch was deleted.
+	UnmergedDeleted = "UD"
+	// MergeConflictBothSides means both the file in the current branch and the file being merged have conflicts.
+	MergeConflictBothSides = "UU"
+)
+
+func hasConflicts(statusLines []string) (isConflict bool, isRebase bool) {
+	for _, line := range statusLines {
+		if strings.HasPrefix(line, Unmerged) || strings.HasPrefix(line, MergeConflictBothSides) ||
+			strings.HasPrefix(line, UnmergedDeleted) || strings.HasPrefix(line, UnmergedAdded) {
+			isConflict = true
+			if strings.HasPrefix(line, "UU") {
+				isRebase = true
+			}
+			break
+		}
+	}
+	return isConflict, isRebase
+}
+
+func hasRemoteURL(gitRoot string, remoteName string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "remote", "get-url", remoteName)
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+// fetchBranches fetches the branches from the remote and retries on failures.
+func fetchBranches(gitRoot string, remoteName string) error {
+	cmd := exec.Command("git", "-C", gitRoot, "fetch", remoteName)
+	return execCommandWithRetry(cmd, gitRoot, remoteName, MaxFetchBranchAttempts)
+}
+
+func branchExistsLocally(gitRoot string, branch string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "rev-parse", "--verify", branch)
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+func branchExistsRemotely(gitRoot, remoteName, branch string) bool {
+	remoteBranch := fmt.Sprintf("%s/%s", remoteName, branch)
+	cmd := exec.Command("git", "-C", gitRoot, "rev-parse", "--verify", remoteBranch)
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+func commitsBehind(gitRoot, branch, remoteName, repoName string) (string, error) {
+	branchExpression := fmt.Sprintf("%s..%s/%s", branch, remoteName, branch)
+	cmd := exec.Command("git", "-C", gitRoot, "rev-list", "--count", branchExpression)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			params := []any{lightRed, repoName, string(exitError.Stderr), exitError.ExitCode(), reset}
+			return "", fmt.Errorf("%sError checking rev-list %s: %s (exit status %d)%s", params...)
+		}
+		return "", fmt.Errorf("%sError checking rev-list %s: %v%s", lightRed, repoName, err, reset)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// lastCommit retrieves the last commit ahead of local and formats it.
+func lastCommit(gitRoot, repoName string) (string, error) {
+	logFormat := "--pretty=format:%an %ad\n%h %s"
+	cmd := exec.Command("git", "-C", gitRoot, "log", "-1", logFormat)
+	cmd.Env = append(os.Environ(), "LC_TIME=C") // Standardize date format
+	authorCommitOutput, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("%sError checking last commit author %s: %v%s", lightRed, repoName, err, reset)
+	}
+	return strings.TrimSpace(string(authorCommitOutput)), nil
+}
+
+// commitText conditionally returns the singular or plural form of the commit text.
+func commitText(behindCount string) string {
+	if behindCount == "1" {
+		return "commit"
+	}
+	return "commits"
+}
+
+func status(gitRoot string) ([]string, []byte, error) {
+	statusOutput, err := exec.Command("git", "-C", gitRoot, "status", "--porcelain").CombinedOutput()
+	if err != nil {
+		return []string{}, statusOutput, err
+	}
+	// Split the status output into individual lines.
+	return strings.Split(strings.TrimSpace(string(statusOutput)), "\n"), statusOutput, nil
+}
+
+// abortRebase aborts a rebase in progress.
+func abortRebase(gitRoot string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "rebase", "--abort")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+// abortMerge aborts a merge in progress.
+func abortMerge(gitRoot string) bool {
+	cmd := exec.Command("git", "-C", gitRoot, "merge", "--abort")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
 }
 
 // runGitLog runs the git log command to show the complete list of changes.
