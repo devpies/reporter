@@ -2,22 +2,7 @@
 
 Reporter recursively reports and resolves drifts across multiple git repositories. [How it Works](#how-it-works)
 
-```
-$ rp
-Checking Repositories For Updates. git: (origin/main)
-
-Outdated Repositories:
-mvp-service is 13 commits behind
-Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
-abc123 fix: provide db transaction context
-
-Up-to-Date Repositories:
-mvp-frontend is up-to-date
-mvp-backend-go is up-to-date
-mvp-backend-python is up-to-date
-mvp-shared-library is up-to-date
-mvp-tools is up-to-date
-````
+![](./docs/img/update.png)
 
 ## Installation
 ### Prerequisites
@@ -69,36 +54,39 @@ sudo mv rp /usr/local/bin/rp
 
 ### Reporting Multiple Git Repositories
 
-To maximize the tool's effectiveness, run reporter in a parent directory that contains multiple Git repositories. 
-This approach allows for efficient management and synchronization of all repositories simultaneously.
+Run reporter in a parent directory that contains multiple Git repositories.
 
 ```
 $ rp
+
 Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
+
 mvp-service is 13 commits behind
 Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
 abc123 fix: provide db transaction context
 
 Up-to-Date Repositories:
+
 mvp-frontend is up-to-date
 mvp-backend-go is up-to-date
 mvp-backend-python is up-to-date
 mvp-shared-library is up-to-date
 mvp-tools is up-to-date
-````
+```
 
 ### Updating Multiple Git Repositories
 
-To automatically update repositories that are behind:
+Automatically update repositories that are behind (--update, -u):
 
 ```
-$ rp --update
+$ rp -u
 
 Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
+
 mvp-service is 13 commits behind
 Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
 abc123 fix: provide db transaction context
@@ -109,6 +97,7 @@ abc123 fix: provide db transaction context
  mvp-service is up-to-date
 
 Up-to-Date Repositories:
+
 mvp-frontend is up-to-date
 mvp-backend-go is up-to-date
 mvp-backend-python is up-to-date
@@ -116,9 +105,9 @@ mvp-shared-library is up-to-date
 mvp-tools is up-to-date
 ```
 
-### Using the --log Flag
+### Reporting All Changes in Remote
 
-In a Git repository, you can show the complete list of changes in the default remote branch.
+In a Git repository, you can show the complete list of changes in the default remote branch (--log, -l).
 
 ```
 $ rp --log
@@ -138,25 +127,29 @@ Date:   Mon Dec 01 10:56:42 2023 +0100
     feat: add new authentication module
 ```
 
-### Using the --branch Flag
-To check for updates against a different branch:
+## Help
+
+Display help text to learn more commands (--help, -h):
 
 ```
-$ rp --branch develop
+$ rp --help
 
-Checking Repositories For Updates. git: (origin/develop)
+Usage: rp (reporter) [OPTIONS]
 
-Outdated Repositories:
-mvp-service is 7 commits behind
-Last commit by Clark Kent Mon Dec 01 10:56:42 2023 +0100
-def456 feat: add new authentication module
+Reporter recursively reports and resolves drifts across multiple git repositories.
 
-Up-to-Date Repositories:
-mvp-frontend is up-to-date
-mvp-backend-go is up-to-date
-mvp-backend-python is up-to-date
-mvp-shared-library is up-to-date
-mvp-tools is up-to-date
+Options:
+--help, -h        Show this help message
+--update, -u      Automatically update repositories that are behind
+--branch, -b      Specify the branch to check (default: main)
+--log, -l         Show the complete list of changes using git log
+--force, -f       Forcefully abort rebase and merge conflicts to update
+--remote, -r      Remote name (default: origin)
+
+Examples:
+
+[Truncated Output For Brevity]
+...
 ```
 
 ## Configuration File (.rprc)
@@ -192,31 +185,6 @@ exclude:
 remote_name: origin
 ```
 
-## Help
-
-To display usage information:
-
-```
-$ rp --help
-
-Usage: rp (reporter) [OPTIONS]
-
-Reporter recursively reports and resolves drifts across multiple git repositories.
-
-Options:
---help, -h        Show this help message
---update, -u      Automatically update repositories that are behind
---branch, -b      Specify the branch to check (default: main)
---log, -l         Show the complete list of changes using git log
---force, -f       Forcefully abort rebase and merge conflicts to update
---remote, -r      Remote name (default: origin)
-
-Examples:
-
-[Truncated Output For Brevity]
-...
-```
-
 ## How it works
 
 When executed in a directory that is not a Git repository, it will recursively check all subdirectories to identify
@@ -247,9 +215,7 @@ stashed changes.
 
 ## Contributing
 
-To contribute, create an issue for bugs or submit a pull request.
-
-Use the Makefile for common development tasks:
+To contribute, create an issue or pull request. Remember to use the project Makefile for common development tasks:
 
 ```
 make install
