@@ -69,7 +69,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 
 		if g.Update {
 			result += "\n:."
-			statusLines, statusOutput, sErr := g.status()
+			statusLines, sErr := g.status()
 			if sErr != nil {
 				results <- fmt.Sprintf("%sError checking status for %s\n%s%s", LightRed, g.RepoName, sErr, Reset)
 				return false
@@ -102,7 +102,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 				}
 			}
 
-			if string(statusOutput) != "" {
+			if hasStagedChanges(statusLines) {
 				result += "\n Stashing local changes"
 				if !g.stashChanges() {
 					results <- fmt.Sprintf("%sError stashing changes in %s%s", LightRed, g.RepoName, Reset)

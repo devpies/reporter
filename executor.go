@@ -98,13 +98,13 @@ func (g *GitExecutor) lastCommit() (string, error) {
 }
 
 // status returns the porcelain formatted git status for the repository.
-func (g *GitExecutor) status() ([]string, []byte, error) {
+func (g *GitExecutor) status() ([]string, error) {
 	statusOutput, err := exec.Command("git", "-C", g.GitRoot, "status", "--porcelain").CombinedOutput()
 	if err != nil {
-		return []string{}, statusOutput, err
+		return []string{}, err
 	}
 	// Split the status output into individual lines.
-	return strings.Split(strings.TrimSpace(string(statusOutput)), "\n"), statusOutput, nil
+	return strings.Split(strings.TrimSpace(string(statusOutput)), "\n"), nil
 }
 
 // abortRebase aborts a rebase in progress.
@@ -293,6 +293,18 @@ func parseGitRemoteURL(remoteURL string) (user string, repo string, err error) {
 	user = parts[len(parts)-2]
 	repo = strings.TrimSuffix(parts[len(parts)-1], ".git")
 	return user, repo, nil
+}
+
+// hasStagedChanges examines each line for the presence of staged changes.
+func hasStagedChanges(statusLines []string) bool {
+	for _, line := range statusLines {
+		if strings.HasPrefix(line, StagedAdded) || strings.HasPrefix(line, StagedModified) ||
+			strings.HasPrefix(line, StagedDeleted) || strings.HasPrefix(line, StagedRenamed) ||
+			strings.HasPrefix(line, StagedCopied) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasConflicts examines each line for the presence of conflicts.
