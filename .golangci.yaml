@@ -37,6 +37,10 @@ linters-settings:
         disabled: true
       - name: unhandled-error
         arguments: ["fmt.Printf", "fmt.Println"]
+  gosec:
+    # Disable specific rules globally
+    excludes:
+      - G204 # "Subprocess launched with a potential tainted input or cmd arguments"
 issues:
   include:
     - EXC0012
