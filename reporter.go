@@ -661,6 +661,8 @@ func main() {
 			wg.Wait()
 			close(results)
 
+			fmt.Printf("\nChecking Repository For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
+
 			for result := range results {
 				fmt.Println(result)
 			}
