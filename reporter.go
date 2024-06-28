@@ -210,11 +210,10 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 		return false
 	}
 	behindCount := strings.TrimSpace(string(output))
-	logFormat := "--pretty=format:%an.\n(hash: %h, date: %ad) - %s"
-	remoteBranch := fmt.Sprintf("%s/%s", remoteName, branch)
+	logFormat := "--pretty=format:%an %ad\n%h %s"
 
 	// Retrieve last commit ahead of local and format it.
-	cmd = exec.Command("git", "-C", gitRoot, "log", "-1", logFormat, remoteBranch)
+	cmd = exec.Command("git", "-C", gitRoot, "log", "-1", logFormat)
 	cmd.Env = append(os.Environ(), "LC_TIME=C") // Standardize date format
 	authorCommitOutput, err := cmd.Output()
 	if err != nil {
@@ -226,10 +225,15 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 
 	// If repository is outdated continue processing.
 	if behindCount != "0" {
-		params = []any{lightRed, repoName, behindCount, remoteName, branch, commitDetails, reset}
-		result := fmt.Sprintf("%s%s is %s commits behind (%s/%s). Last commit author: %s%s", params...)
+		var commitText = "commits"
+		if behindCount == "1" {
+			commitText = "commit"
+		}
+		params = []any{lightRed, repoName, behindCount, commitText, commitDetails, reset}
+		result := fmt.Sprintf("%s%s is %s %s behind\nLast commit by %s%s", params...)
 
 		if update {
+			result += "\n:."
 			// Check if there is an ongoing rebase or merge conflict.
 			var statusOutput []byte
 			statusOutput, err = exec.Command("git", "-C", gitRoot, "status", "--porcelain").CombinedOutput()
@@ -265,7 +269,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 				}
 
 				// Force the update.
-				result += fmt.Sprintf("\n%sForcing update...%s", lightRed, reset)
+				result += fmt.Sprintf("\n%s Forcing update...%s", lightRed, reset)
 				if isRebase {
 					// Rebase Abort.
 					cmd = exec.Command("git", "-C", gitRoot, "rebase", "--abort")
@@ -283,13 +287,15 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 				}
 			}
 
-			// Stash local changes.
-			result += "\nStashing local changes..."
-			cmd = exec.Command("git", "-C", gitRoot, "stash")
-			err = cmd.Run()
-			if err != nil {
-				results <- fmt.Sprintf("%sError stashing changes in %s: %v%s", lightRed, repoName, err, reset)
-				return false
+			if string(statusOutput) != "" {
+				// Stash local changes.
+				result += "\n Stashing local changes"
+				cmd = exec.Command("git", "-C", gitRoot, "stash")
+				err = cmd.Run()
+				if err != nil {
+					results <- fmt.Sprintf("%sError stashing changes in %s: %v%s", lightRed, repoName, err, reset)
+					return false
+				}
 			}
 
 			// Switch to the default branch.
@@ -302,7 +308,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 			}
 
 			// Reset the local default branch to match the remote.
-			result += "\nPulling latest changes..."
+			result += "\n Pulling latest changes"
 			cmd = exec.Command("git", "-C", gitRoot, "reset", "--hard", fmt.Sprintf("%s/%s", remoteName, branch))
 			err = cmd.Run()
 			if err != nil {
@@ -323,7 +329,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 
 			// Apply stashes if they exist.
 			if len(stashListOutput) > 0 {
-				result += "\nApplying stashed changes..."
+				result += "\n Applying stashed changes"
 				cmd = exec.Command("git", "-C", gitRoot, "stash", "apply")
 				err = cmd.Run()
 				if err != nil {
@@ -333,7 +339,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 			}
 
 			// Success.
-			result += fmt.Sprintf("\n%sRepository updated successfully!%s", lightGreen, reset)
+			result += fmt.Sprintf("\n%s %s is up-to-date%s", lightGreen, repoName, reset)
 		}
 		// Merge actions taken and potentially a success message into results.
 		results <- result + reset
@@ -428,8 +434,8 @@ func findConfigFile(currentDir string) (string, error) {
 
 // showUsage displays usage information.
 func showUsage() {
-	commitHeader := "  %smvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.\n"
-	commitMessage := "(hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context%s"
+	commitHeader := "  %smvp-service is 13 commits behind\n  Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100\n"
+	commitMessage := "  abc123 fix: provide db transaction context\n%s"
 	fmt.Println("Usage: rp (reporter) [OPTIONS]")
 	fmt.Println()
 	fmt.Println("Reporter recursively reports and resolves drifts across multiple git repositories.")
@@ -472,10 +478,11 @@ func showUsage() {
 	fmt.Println("  Outdated Repositories:")
 	fmt.Printf(commitHeader, lightRed)
 	fmt.Printf(commitMessage, reset)
-	fmt.Println("  Stashing local changes...")
-	fmt.Println("  Pulling latest changes...")
-	fmt.Println("  Applying stashed changes...")
-	fmt.Printf("  %sRepository updated successfully!%s\n", lightGreen, reset)
+	fmt.Println("  :.")
+	fmt.Println("   Stashing local changes")
+	fmt.Println("   Pulling latest changes")
+	fmt.Println("   Applying stashed changes")
+	fmt.Printf("   %smvp-service is up-to-date%s\n", lightGreen, reset)
 	fmt.Println()
 	fmt.Println("  Up-to-Date Repositories:")
 	fmt.Printf("  %smvp-frontend is up-to-date%s\n", lightGreen, reset)
