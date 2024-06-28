@@ -7,8 +7,9 @@ $ rp
 Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
-mvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.
-(hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context
+mvp-service is 13 commits behind
+Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
+abc123 fix: provide db transaction context
 
 Up-to-Date Repositories:
 mvp-frontend is up-to-date
@@ -76,8 +77,9 @@ $ rp
 Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
-mvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.
-(hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context
+mvp-service is 13 commits behind
+Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
+abc123 fix: provide db transaction context
 
 Up-to-Date Repositories:
 mvp-frontend is up-to-date
@@ -97,12 +99,14 @@ $ rp --update
 Checking Repositories For Updates. git: (origin/main)
 
 Outdated Repositories:
-mvp-service is 13 commits behind (origin/main). Last commit author: Lois Lane.
-(hash: abc123, date: Fri Nov 24 10:56:42 2023 +0100) - fix: provide db transaction context
-Stashing local changes...
-Pulling latest changes...
-Applying stashed changes...
-Repository updated successfully!
+mvp-service is 13 commits behind
+Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
+abc123 fix: provide db transaction context
+:.
+ Stashing local changes
+ Pulling latest changes
+ Applying stashed changes
+ mvp-service is up-to-date
 
 Up-to-Date Repositories:
 mvp-frontend is up-to-date
@@ -143,33 +147,9 @@ $ rp --branch develop
 Checking Repositories For Updates. git: (origin/develop)
 
 Outdated Repositories:
-mvp-service is 7 commits behind (origin/develop). Last commit author: Clark Kent.
-(hash: def456, date: Mon Dec 01 10:56:42 2023 +0100) - feat: add new authentication module
-
-Up-to-Date Repositories:
-mvp-frontend is up-to-date
-mvp-backend-go is up-to-date
-mvp-backend-python is up-to-date
-mvp-shared-library is up-to-date
-mvp-tools is up-to-date
-```
-
-### Using the --branch and --update Flags Together
-
-To check for updates against a different branch and automatically update repositories that are behind:
-
-```
-$ rp --branch develop --update
-
-Checking Repositories For Updates. git: (origin/develop)
-
-Outdated Repositories:
-mvp-service is 7 commits behind (origin/develop). Last commit author: Clark Kent.
-(hash: def456, date: Mon Dec 01 10:56:42 2023 +0100) - feat: add new authentication module
-Stashing local changes...
-Pulling latest changes...
-Applying stashed changes...
-Repository updated successfully!
+mvp-service is 7 commits behind
+Last commit by Clark Kent Mon Dec 01 10:56:42 2023 +0100
+def456 feat: add new authentication module
 
 Up-to-Date Repositories:
 mvp-frontend is up-to-date
