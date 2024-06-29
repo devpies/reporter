@@ -55,15 +55,15 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 		return false
 	}
 
-	// Reporter find the last commit for the report.
-	lastCommitInfo, err := g.lastCommit()
-	if err != nil {
-		results <- err.Error()
-		return false
-	}
-
-	// If repository is outdated continue processing.
+	// Check if the repository is outdated.
 	if behindCount != "0" {
+		// Find the last commit for the report.
+		lastCommitInfo, lErr := g.lastCommit()
+		if lErr != nil {
+			results <- lErr.Error()
+			return false
+		}
+
 		params = []any{LightRed, g.RepoName, behindCount, commitText(behindCount), lastCommitInfo, Reset}
 		result := fmt.Sprintf("%s\n%s is %s %s behind\nLast commit by %s%s", params...)
 

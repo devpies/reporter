@@ -1,6 +1,6 @@
 # reporter
 
-Reporter recursively reports and resolves drifts across multiple git repositories. [How it Works](#how-it-works)
+Reporter recursively reports and resolves drifts across multiple git repositories.
 
 ![](./docs/img/update.png)
 
@@ -105,9 +105,10 @@ mvp-shared-library is up-to-date
 mvp-tools is up-to-date
 ```
 
-### Reporting All Changes in Remote
+### Reporting Latest Commits Before Pulling
 
-In a Git repository, you can show the complete list of changes in the default remote branch (--log, -l).
+Display the latest commits on the remote branch that are not yet present
+in the local branch before pulling changes (--log, -l).
 
 ```
 $ rp --log
@@ -155,11 +156,10 @@ Examples:
 ## Configuration File (.rprc)
 
 The `.rprc` file is an optional YAML configuration file that allows you to customize the behavior of the reporter tool.
-It can specify the branch to check for updates, whether to automatically update repositories that are behind, and which
-repositories to include or exclude from the check.
+It can configure the remote and branch to check for updates, whether to automatically update repositories that are behind,
+and define which repositories to include or exclude from the check.
 
-For optimal use, place the `.rprc` file in the parent directory containing all your Git repositories. This allows the
-configuration to be applied to multiple repositories managed by reporter.
+Place the `.rprc` file wherever you'd like to run reporter.
 
 ### Include/Exclude Repositories
 
@@ -184,34 +184,6 @@ exclude:
    - repo3
 remote_name: origin
 ```
-
-## How it works
-
-When executed in a directory that is not a Git repository, it will recursively check all subdirectories to identify
-and report the status of any Git repositories it finds. It categorizes these repositories as either up-to-date or
-outdated based on their sync status with the remote main branch. Optionally, it can also automatically update 
-repositories that are behind by stashing local changes, pulling the latest updates, and reapplying the stashed changes.
-
-When executed within a Git repository, it checks if the local main branch is up-to-date with the remote main branch.
-If the repository is behind, it fetches updates from the remote and displays detailed commit information from the remote
-main branch. This detailed information includes commit hashes, authors, dates, and commit messages, providing
-comprehensive insight into what has changed upstream.
-
-This functionality is particularly useful for developers working in environments with multiple repositories, as it
-allows for quick verification of repository statuses and identification of necessary updates. 
-
-### Unique Benefits:
-1. **Automation and Convenience**: Automates the process of checking and updating multiple repositories, saving time and
-reducing manual errors.
-2. **Batch Processing**: Recursively checks and updates multiple repositories in a single command, unlike using Git 
-commands individually for each repository.
-3. **Centralized Configuration**: The `.rprc` configuration file allows users to specify settings like branches to 
-check, whether to auto-update, and which repositories to include or exclude.
-4. **Detailed Reporting**: Provides comprehensive commit information, including commit hashes, authors, dates, and 
-messages.
-5. **Selective Updates**: Allows selective checking and updating of specific repositories via include/exclude lists.
-6. **Stashing and Applying Changes**: Automatically stashes local changes, pulls the latest updates, and reapplies the 
-stashed changes.
 
 ## Contributing
 

@@ -1,7 +1,32 @@
-// Package reporter provides functionality to check for drifts in local Git repositories
-// from their remote branches and optionally resolve them by updating the local repositories.
-// The tool ensures that local repositories are synchronized with their remote counterparts,
+// Package reporter recursively reports and resolves drifts across multiple git repositories.
+// Reporter ensures that local repositories are synchronized with their remote counterparts,
 // making it easier for developers to manage multiple repositories and keep them up-to-date.
+
+// When executed in a Git repository, it checks only that repository. When executed in a
+// directory that is not a Git repository, it will recursively check all subdirectories to
+// identify and report the status of any Git repositories it finds. It categorizes these
+// repositories as either up-to-date or outdated based on their sync status with the desired
+// remote branch. If the repository is behind, it fetches updates from the remote and displays
+// the last commit details.
+
+// Optionally, reporter can also automatically update repositories that are behind. If necessary,
+// reporter will stash local changes, before pulling the latest updates, and then reapply
+// the stashed changes.
+
+// It is possible to configure reporter by creating an .rprc file. Place this file wherever
+// you'd like to run reporter.
+//
+//	```yaml
+//		branch: main
+//		update: true
+//		include:
+//		- repo1
+//		- repo2
+//		- repo3
+//		exclude:
+//		- repo3
+//		remote_name: origin
+//	```
 package main
 
 import (
@@ -53,8 +78,8 @@ func main() {
 	// Load configuration from .rprc if present
 	configPath, err := findConfigFile(currentDir)
 	if err == nil && configPath != "" {
-		loadedConfig, err := loadConfig(configPath)
-		if err != nil {
+		loadedConfig, lErr := loadConfig(configPath)
+		if lErr != nil {
 			fmt.Printf("%sError loading config: %v%s\n", LightRed, err, Reset)
 			os.Exit(1)
 		}
@@ -104,9 +129,8 @@ func main() {
 			fmt.Printf("%sError: %s is not a Git repository%s\n", LightRed, currentDir, Reset)
 			os.Exit(1)
 		}
-		err := runGitLog(currentDir, config.RemoteName, config.Branch)
-		if err != nil {
-			fmt.Printf("%sError running git log: %v%s\n", LightRed, err, Reset)
+		if rErr := runGitLog(currentDir, config.RemoteName, config.Branch); err != nil {
+			fmt.Printf("%sError running git log: %v%s\n", LightRed, rErr, Reset)
 			os.Exit(1)
 		}
 		return
@@ -123,10 +147,10 @@ func main() {
 			close(results)
 
 			fmt.Printf("\nChecking Repository For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
-
 			for result := range results {
 				fmt.Println(result)
 			}
+			fmt.Println()
 		}
 		return
 	}
@@ -178,8 +202,9 @@ func main() {
 		for _, repo := range outdatedRepos {
 			fmt.Println(repo)
 		}
-		fmt.Println()
 	}
+
+	fmt.Println()
 
 	if len(upToDateRepos) > 0 {
 		fmt.Printf("Up-to-Date Repositories:\n\n")
@@ -187,4 +212,5 @@ func main() {
 			fmt.Println(repo)
 		}
 	}
+	fmt.Println()
 }
