@@ -17,7 +17,7 @@ test: lint fmt ;@ ## Run Tests
 .PHONY: test
 
 build: ;@ ## Run Build
-	@go build -o reporter main.go
+	@go build -o rp ./...
 .PHONY: build
 
 help:
