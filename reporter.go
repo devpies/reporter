@@ -142,11 +142,11 @@ func main() {
 			var wg sync.WaitGroup
 			results := make(chan string, 1)
 			wg.Add(1)
+			fmt.Printf("\nChecking Repository For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
 			checkIfBehind(currentDir, &wg, results, config)
 			wg.Wait()
 			close(results)
 
-			fmt.Printf("\nChecking Repository For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
 			for result := range results {
 				fmt.Println(result)
 			}
