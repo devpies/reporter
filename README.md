@@ -161,6 +161,8 @@ and define which repositories to include or exclude from the check.
 
 Place the `.rprc` file wherever you'd like to run reporter.
 
+> NOTE: When run in a git repository, `rp` will check both the current directory and its parent for configuration.
+
 ### Include/Exclude Repositories
 
 You can specify which repositories to include or exclude in the `.rprc` file.
@@ -187,11 +189,12 @@ remote_name: origin
 
 ## Contributing
 
-To contribute, create an issue or pull request. Remember to use the project Makefile for common development tasks:
+To contribute, please create an issue or pull request. For common development tasks, utilize the project's Makefile.
 
 ```
 make install
 make test
+make build
 ```
 
 
