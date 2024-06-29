@@ -330,7 +330,7 @@ func commitText(behindCount string) string {
 }
 
 // runGitLog runs the git log command to show the complete list of changes.
-func runGitLog(dir, branch, remoteName string) error {
+func runGitLog(dir, remoteName, branch string) error {
 	cmd := exec.Command("git", "log", fmt.Sprintf("%s..%s/%s", branch, remoteName, branch))
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
