@@ -107,8 +107,8 @@ mvp-tools is up-to-date
 
 ### Reporting Latest Commits Before Pulling
 
-Show the latest changes ahead of the local branch 
-within the remote branch before pulling changes (--log, -l).
+Display the latest commits on the remote branch that are not yet present
+in the local branch before pulling changes (--log, -l).
 
 ```
 $ rp --log
