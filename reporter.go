@@ -2,6 +2,21 @@
 // from their remote branches and optionally resolve them by updating the local repositories.
 // The tool ensures that local repositories are synchronized with their remote counterparts,
 // making it easier for developers to manage multiple repositories and keep them up-to-date.
+//
+// - How it works -
+//
+// When executed in a directory that is not a Git repository, it will recursively check all
+// subdirectories to identify and report the status of any Git repositories it finds.
+// It categorizes these repositories as either up-to-date or outdated based on their sync
+// status with the desired remote branch. Optionally, it can also automatically update
+// repositories that are behind. If necessary, reporter will stash local changes, before
+// pulling the latest updates, and then reapply the stashed changes.
+//
+// When executed in a Git repository, it checks if the desired local branch is up-to-date
+// with the desired remote counterpart. If the repository is behind, it fetches updates
+// from the remote and displays the last commit details from the desired remote branch.
+// This information includes the number of commits behind, the commit hash, author, date,
+// and commit message.
 package main
 
 import (
@@ -123,10 +138,10 @@ func main() {
 			close(results)
 
 			fmt.Printf("\nChecking Repository For Updates. git: (%s/%s)\n", config.RemoteName, config.Branch)
-
 			for result := range results {
 				fmt.Println(result)
 			}
+			fmt.Println()
 		}
 		return
 	}
@@ -178,8 +193,9 @@ func main() {
 		for _, repo := range outdatedRepos {
 			fmt.Println(repo)
 		}
-		fmt.Println()
 	}
+
+	fmt.Println()
 
 	if len(upToDateRepos) > 0 {
 		fmt.Printf("Up-to-Date Repositories:\n\n")
@@ -187,4 +203,5 @@ func main() {
 			fmt.Println(repo)
 		}
 	}
+	fmt.Println()
 }

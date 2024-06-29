@@ -329,9 +329,8 @@ func commitText(behindCount string) string {
 	return "commits"
 }
 
-// RunGitLog runs the git log command to show the complete list of changes.
+// runGitLog runs the git log command to show the complete list of changes.
 func runGitLog(dir, branch, remoteName string) error {
-	// #nosec G204: Subprocess launched with a potential tainted input or cmd arguments
 	cmd := exec.Command("git", "log", fmt.Sprintf("%s..%s/%s", branch, remoteName, branch))
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
