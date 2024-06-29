@@ -156,11 +156,10 @@ Examples:
 ## Configuration File (.rprc)
 
 The `.rprc` file is an optional YAML configuration file that allows you to customize the behavior of the reporter tool.
-It can configure the remote and branch to check for updates, whether to automatically update repositories that are behind, and which
-repositories to include or exclude from the check.
+It can configure the remote and branch to check for updates, whether to automatically update repositories that are behind,
+and define which repositories to include or exclude from the check.
 
-For optimal use, place the `.rprc` file in the parent directory containing all your Git repositories. This allows the
-configuration to be applied to multiple repositories managed by reporter.
+Place the `.rprc` file wherever you'd like to run reporter.
 
 ### Include/Exclude Repositories
 
