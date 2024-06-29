@@ -52,7 +52,7 @@ sudo mv rp /usr/local/bin/rp
 
 ## Getting Started
 
-### Reporting Multiple Git Repositories
+### Checking Multiple Git Repositories
 
 Run reporter in a parent directory that contains multiple Git repositories.
 
@@ -105,13 +105,13 @@ mvp-shared-library is up-to-date
 mvp-tools is up-to-date
 ```
 
-### Reporting Latest Commits Before Pulling
+### Logging Latest Commits Before Pulling
 
 Display the latest commits on the remote branch that are not yet present
 in the local branch before pulling changes (--log, -l).
 
 ```
-$ rp --log
+$ rp -l
 
 commit 2743ff76bbdc4affba6b39a8866fd7ccb8db8190 (origin/main)
 Merge: 915051a 2e0a935
@@ -130,10 +130,10 @@ Date:   Mon Dec 01 10:56:42 2023 +0100
 
 ## Help
 
-Display help text to learn more commands (--help, -h):
+Display help text (--help, -h):
 
 ```
-$ rp --help
+$ rp -h
 
 Usage: rp (reporter) [OPTIONS]
 
@@ -168,8 +168,8 @@ You can specify which repositories to include or exclude in the `.rprc` file.
 - **Include List:** If you specify an include list, only the repositories listed will be checked.
 - **Exclude List:** If you specify an exclude list, the repositories listed will be ignored.
 - **Combination:** If both lists are specified, the tool will check only the repositories listed in include and will
-- exclude any repositories that are also listed in exclude. The exclude list refines the include list by removing
-- repositories that should not be checked.
+exclude any repositories that are also listed in exclude. The exclude list refines the include list by removing 
+repositories that should not be checked.
 
 Example `.rprc` File
 
