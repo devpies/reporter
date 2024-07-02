@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# GetGo retrieves and installs Go for Linux and macOS operating systems.
+# GetGo installs Go for Linux and macOS operating systems.
 function GetGo() {
   # Check if Go is installed
   if ! command -v go &> /dev/null; then
@@ -21,7 +21,7 @@ function GetGo() {
   fi
 }
 
-# GetGolangCILint retrieves and installs Golang CI Linter for Linux and macOS operating systems.
+# GetGolangCILint installs Golang CI Linter for Linux and macOS operating systems.
 function GetGolangCILint() {
   # Check if golangci-lint is installed
   if ! command -v golangci-lint &> /dev/null; then
