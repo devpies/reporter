@@ -29,6 +29,6 @@ const (
 	// StagedCopied means a copied file staged change.
 	StagedCopied = "C "
 
-	// MaxFetchBranchAttempts represents a maximum reties to fetch branches.
-	MaxFetchBranchAttempts = 30
+	// MaxAttempts represents maximum reties.
+	MaxAttempts = 5
 )

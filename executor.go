@@ -48,7 +48,7 @@ func (g *GitExecutor) hasRemoteURL() bool {
 // fetchBranches fetches the branches from the remote and retries on failures.
 func (g *GitExecutor) fetchBranches() error {
 	cmd := exec.Command("git", "-C", g.GitRoot, "fetch", g.RemoteName)
-	return execCommandWithRetry(cmd, g.GitRoot, g.RemoteName, MaxFetchBranchAttempts)
+	return execCommandWithRetry(cmd, g.GitRoot, g.RemoteName, MaxAttempts)
 }
 
 // branchExistsLocally checks if the desired branch exists locally.
@@ -179,7 +179,7 @@ var cb *gobreaker.CircuitBreaker
 func init() {
 	settings := gobreaker.Settings{
 		Name:        "GitCommandCircuitBreaker",
-		MaxRequests: 5,
+		MaxRequests: MaxAttempts,
 		Interval:    time.Minute,
 		Timeout:     time.Minute,
 		ReadyToTrip: func(counts gobreaker.Counts) bool {
