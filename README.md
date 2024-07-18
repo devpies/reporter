@@ -46,7 +46,7 @@ You can also install reporter by cloning the repository and building it from sou
 ```sh
 git clone https://github.com/devpies/reporter
 cd reporter
-go build -o rp reporter.go
+go build -o rp ./...
 sudo mv rp /usr/local/bin/rp
 ```
 
