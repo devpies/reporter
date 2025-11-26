@@ -237,8 +237,8 @@ func getGitRoot(dir string) (string, error) {
 }
 
 // generateRandomInt returns a random integer between 0 and max-1 using crypto/rand.
-func generateRandomInt(max int64) (int64, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(max))
+func generateRandomInt(maxValue int64) (int64, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(maxValue))
 	if err != nil {
 		return 0, err
 	}

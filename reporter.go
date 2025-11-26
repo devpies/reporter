@@ -207,7 +207,7 @@ func main() {
 	fmt.Println()
 
 	if len(upToDateRepos) > 0 {
-		fmt.Printf("Up-to-Date Repositories:\n\n")
+		_, _ = fmt.Print("Up-to-Date Repositories:\n\n")
 		for _, repo := range upToDateRepos {
 			fmt.Println(repo)
 		}
