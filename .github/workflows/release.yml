@@ -17,8 +17,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          cache: 'gomod'   # built-in module cache
           go-version: '1.22.4'
+          cache: true   # <-- boolean, not string
+
       - name: Install dependencies
         run: |
           make install
