@@ -65,7 +65,7 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 		}
 
 		params = []any{LightRed, g.RepoName, behindCount, commitText(behindCount), lastCommitInfo, Reset}
-		result := fmt.Sprintf("%s\n%s is %s %s behind\nLast commit by %s%s", params...)
+		result := fmt.Sprintf("%s\n[Remote] %s is %s %s ahead.\nLast local commit by %s%s", params...)
 
 		if g.Update {
 			result += "\n:."

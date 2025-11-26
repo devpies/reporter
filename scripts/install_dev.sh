@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 # INSTALL DEV
 #
 # This script prepares a developer environment by installing the Go toolchain
@@ -12,7 +14,6 @@
 # If the latest version is already present, the package managers will perform
 # no action (Linux apt / Homebrew). On Linux, golangci-lint will always be
 # reinstalled to ensure it matches the latest GitHub release.
-set -euo pipefail
 
 function install_go() {
   if [[ "$OSTYPE" == "linux-gnu"* ]]; then

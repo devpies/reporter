@@ -1,13 +1,10 @@
 package main
 
-// ANSI escape codes.
 const (
-	// LightRed style for text.
-	LightRed = "\033[91m"
-	// LightGreen style for text.
-	LightGreen = "\033[92m"
-	// Reset style.
-	Reset = "\033[0m"
+	// DefaultBranch is the default git branch used by reporter.
+	DefaultBranch = "main"
+	// DefaultRemote is the default git remote used by reporter.
+	DefaultRemote = "origin"
 
 	// Unmerged means the file is unmerged, meaning there is a conflict.
 	Unmerged = "U "
@@ -31,4 +28,11 @@ const (
 
 	// MaxAttempts represents maximum reties.
 	MaxAttempts = 5
+
+	// LightRed ANSI escape code.
+	LightRed = "\033[91m"
+	// LightGreen ANSI escape code.
+	LightGreen = "\033[92m"
+	// Reset ANSI escape code.
+	Reset = "\033[0m"
 )

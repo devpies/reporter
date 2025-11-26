@@ -4,6 +4,43 @@ Reporter recursively reports and resolves drifts across multiple git repositorie
 
 ![](./docs/img/update.png)
 
+## Overview
+
+Reporter recursively detects and resolves drift across multiple Git repositories.
+It ensures that local repositories remain synchronized with their remote counterparts, 
+making it easier to manage large or multi-repo projects.
+
+When run inside a Git repository, Reporter inspects only that repository.
+When run in a non-repository directory, it recursively scans all subdirectories, identifies Git repositories, and 
+reports their synchronization status relative to the desired remote branch.
+
+Reporter categorizes repositories as up-to-date or outdated depending on whether the local branch is behind the remote. 
+If a repository is behind and the `-u` or `--update` flag is provided, Reporter automatically pulls the latest changes.
+
+If local modifications are present, Reporter safely stashes them before updating, pulls the remote changes, and then 
+reapplies the stashed work to preserve developer progress.
+
+## Help
+
+Display help text (--help, -h):
+
+```
+$ rp -h
+
+Usage: rp (reporter) [OPTIONS]
+
+Reporter recursively reports and resolves drifts across multiple git repositories.
+
+Options:
+  --explain, -e     Show examples
+  --help, -h        Show this help message
+  --update, -u      Automatically update repositories that are behind
+  --branch, -b      Specify the branch to check (default: main)
+  --log, -l         Show the complete list of changes using git log
+  --force, -f       Forcefully abort rebase and merge conflicts to update
+  --remote, -r      Remote name (default: origin)
+```
+
 ## Installation
 ### Prerequisites
 Ensure you have [Git](https://git-scm.com/downloads) and [Go](https://go.dev/dl/) 1.18 >= installed on your machine.
@@ -48,109 +85,6 @@ git clone https://github.com/devpies/reporter
 cd reporter
 go build -o rp ./...
 sudo mv rp /usr/local/bin/rp
-```
-
-## Getting Started
-
-### Checking Multiple Git Repositories
-
-Run reporter in a parent directory that contains multiple Git repositories.
-
-```
-$ rp
-
-Checking Repositories For Updates. git: (origin/main)
-
-Outdated Repositories:
-
-mvp-service is 13 commits behind
-Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
-abc123 fix: provide db transaction context
-
-Up-to-Date Repositories:
-
-mvp-frontend is up-to-date
-mvp-backend-go is up-to-date
-mvp-backend-python is up-to-date
-mvp-shared-library is up-to-date
-mvp-tools is up-to-date
-```
-
-### Updating Multiple Git Repositories
-
-Automatically update repositories that are behind (--update, -u):
-
-```
-$ rp -u
-
-Checking Repositories For Updates. git: (origin/main)
-
-Outdated Repositories:
-
-mvp-service is 13 commits behind
-Last commit by Lois Lane Fri Nov 24 10:56:42 2023 +0100
-abc123 fix: provide db transaction context
-:.
- Stashing local changes
- Pulling latest changes
- Applying stashed changes
- mvp-service is up-to-date
-
-Up-to-Date Repositories:
-
-mvp-frontend is up-to-date
-mvp-backend-go is up-to-date
-mvp-backend-python is up-to-date
-mvp-shared-library is up-to-date
-mvp-tools is up-to-date
-```
-
-### Logging Latest Commits Before Pulling
-
-Display the latest commits on the remote branch that are not yet present
-in the local branch before pulling changes (--log, -l).
-
-```
-$ rp -l
-
-commit 2743ff76bbdc4affba6b39a8866fd7ccb8db8190 (origin/main)
-Merge: 915051a 2e0a935
-Author: Lois Lane <lois@lane.io>
-Date:   Fri Nov 24 10:56:42 2023 +0100
-
-    Merge pull request #2 from clarkkent/auth_module
-    Auth Module
-    
-commit 2e0a935a9817bdc39badefadce2365129f35fa17 (HEAD, origin/branch3, auth_module)
-Author: Clark Kent <clark@kent.io>
-Date:   Mon Dec 01 10:56:42 2023 +0100
-
-    feat: add new authentication module
-```
-
-## Help
-
-Display help text (--help, -h):
-
-```
-$ rp -h
-
-Usage: rp (reporter) [OPTIONS]
-
-Reporter recursively reports and resolves drifts across multiple git repositories.
-
-Options:
---help, -h        Show this help message
---update, -u      Automatically update repositories that are behind
---branch, -b      Specify the branch to check (default: main)
---log, -l         Show the complete list of changes using git log
---force, -f       Forcefully abort rebase and merge conflicts to update
---remote, -r      Remote name (default: origin)
-
-Examples:
-
-[Truncated Output For Brevity]
-...
 ```
 
 ## Configuration File (.rprc)

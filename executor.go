@@ -147,6 +147,7 @@ func (g *GitExecutor) applyStash() bool {
 func (g *GitExecutor) pullLatest() bool {
 	cmd := exec.Command("git", "-C", g.GitRoot, "pull", g.RemoteName, g.Branch)
 	if err := cmd.Run(); err != nil {
+		fmt.Println(err)
 		return false
 	}
 	return true
