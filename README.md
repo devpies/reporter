@@ -45,6 +45,17 @@ Options:
 ### Prerequisites
 Ensure you have [Git](https://git-scm.com/downloads) and [Go](https://go.dev/dl/) 1.18 >= installed on your machine.
 
+### Installing from Source
+
+You can also install reporter by cloning the repository and building it from source. Follow these steps:
+
+```sh
+git clone https://github.com/devpies/reporter
+cd reporter
+go build -o rp .
+sudo mv rp /usr/local/bin/rp
+```
+
 ### Installing with go install
 You can install the binary directly using `go install`. Follow these steps:
 
@@ -75,17 +86,6 @@ You can install the binary directly using `go install`. Follow these steps:
     echo 'alias rp=reporter' >> ~/.bashrc
     source ~/.bashrc
     ```
-
-### Installing from Source
-
-You can also install reporter by cloning the repository and building it from source. Follow these steps:
-
-```sh
-git clone https://github.com/devpies/reporter
-cd reporter
-go build -o rp ./...
-sudo mv rp /usr/local/bin/rp
-```
 
 ## Configuration File (.rprc)
 
