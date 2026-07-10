@@ -1,5 +1,7 @@
 DEFAULT_GOAL: help
 
+VERSION ?= v0.0.1
+
 install: ;@ ## Install Setup
 	@./scripts/install_dev.sh
 .PHONY: install
@@ -18,7 +20,7 @@ test: fmt lint ;@ ## Run Tests
 .PHONY: test
 
 build: ;@ ## Run Build
-	@go build -o rp ./...
+	@go build -ldflags "-X main.Version=$(VERSION)" -o rp .
 .PHONY: build
 
 help:
