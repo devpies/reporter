@@ -67,8 +67,8 @@ git push origin v1.2.3
 ```
 
 This triggers the `Release` GitHub Actions workflow, which cross-builds `rp` for every supported platform and
-publishes a GitHub Release with the binaries attached and auto-generated notes listing the changes since the
-previous release.
+publishes a GitHub Release with the binaries attached. Release notes are **not** auto-generated — add them manually
+by editing the release on GitHub after it's published.
 
 ## Installation
 ### Prerequisites
