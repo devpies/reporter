@@ -8,12 +8,18 @@ set -euo pipefail
 #
 # It is intentionally designed to install the *latest available* versions every
 # time it is executed:
-#   - On Linux, Go is installed via apt and golangci-lint via the official install script.
+#   - On Linux, Go is installed via apt and golangci-lint via `go install`.
 #   - On macOS, Go and golangci-lint are installed via Homebrew.
 #
 # If the latest version is already present, the package managers will perform
 # no action (Linux apt / Homebrew). On Linux, golangci-lint will always be
-# reinstalled to ensure it matches the latest GitHub release.
+# reinstalled to ensure it matches the latest release.
+#
+# NOTE: golangci-lint's official curl-piped install.sh script was previously used
+# on Linux, but its release-asset checksum verification has been unreliable
+# (deterministic checksum mismatches against the published release tarball).
+# `go install` is used instead since it verifies modules via the Go checksum
+# database (GOSUMDB) rather than a hand-rolled release checksum file.
 
 function install_go() {
   if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -34,8 +40,7 @@ function install_go() {
 function install_golangci_lint() {
   if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     GOBIN="$(go env GOPATH)/bin"
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-      | sh -s -- -b "$GOBIN"
+    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
     export PATH="$PATH:$GOBIN"
     if ! grep -q "$GOBIN" ~/.profile 2>/dev/null; then
       echo "export PATH=\"\$PATH:$GOBIN\"" >> ~/.profile

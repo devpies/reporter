@@ -6,6 +6,18 @@ import (
 	"sync"
 )
 
+// resolveBranch returns the branch to check for a given repo, applying any
+// per-repo override in cfg.Branches unless the branch was explicitly set on
+// the command line, in which case the CLI value wins for every repo.
+func resolveBranch(cfg Config, repoName string) string {
+	if !cfg.BranchExplicit {
+		if repoBranch, ok := cfg.Branches[repoName]; ok {
+			return repoBranch
+		}
+	}
+	return cfg.Branch
+}
+
 // checkIfBehind checks if the local branch is behind the remote branch.
 func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Config) bool {
 	defer wg.Done()
@@ -22,7 +34,10 @@ func checkIfBehind(dir string, wg *sync.WaitGroup, results chan<- string, cfg Co
 		return false
 	}
 
-	g := NewGitExecutor(cfg, gitRoot, filepath.Base(gitRoot))
+	repoName := filepath.Base(gitRoot)
+	cfg.Branch = resolveBranch(cfg, repoName)
+
+	g := NewGitExecutor(cfg, gitRoot, repoName)
 
 	// Check if the remote exists.
 	if !g.hasRemoteURL() {

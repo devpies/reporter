@@ -47,6 +47,7 @@ func main() {
 		cfg.Update = loadedConfig.Update
 		cfg.Include = loadedConfig.Include
 		cfg.Exclude = loadedConfig.Exclude
+		cfg.Branches = loadedConfig.Branches
 		if loadedConfig.RemoteName != "" {
 			cfg.RemoteName = loadedConfig.RemoteName
 		}
@@ -62,11 +63,16 @@ func main() {
 		showExamples()
 		return
 	}
+	if cliConfig.Version {
+		fmt.Println(Version)
+		return
+	}
 
 	// CLI overrides
 	if cliConfig.Branch != "" {
 		cfg.Branch = cliConfig.Branch
 	}
+	cfg.BranchExplicit = cliConfig.BranchExplicit
 	if cliConfig.RemoteName != "" {
 		cfg.RemoteName = cliConfig.RemoteName
 	}
