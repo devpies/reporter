@@ -10,6 +10,9 @@
 //		exclude:
 //		- repo3
 //		remote_name: origin
+//		branches:
+//		  repo1: release
+//		  repo2: develop
 //	```
 //
 // You may place this file wherever you'd like to run reporter.
@@ -27,15 +30,18 @@ import (
 
 // Config holds configuration values.
 type Config struct {
-	Branch     string   `yaml:"branch"`
-	Update     bool     `yaml:"update"`
-	Include    []string `yaml:"include"`
-	Exclude    []string `yaml:"exclude"`
-	Force      bool     `yaml:"force"`
-	RemoteName string   `yaml:"remote_name"`
-	Log        bool
-	Help       bool
-	Explain    bool
+	Branch         string            `yaml:"branch"`
+	Update         bool              `yaml:"update"`
+	Include        []string          `yaml:"include"`
+	Exclude        []string          `yaml:"exclude"`
+	Force          bool              `yaml:"force"`
+	RemoteName     string            `yaml:"remote_name"`
+	Branches       map[string]string `yaml:"branches"`
+	Log            bool
+	Help           bool
+	Explain        bool
+	Version        bool
+	BranchExplicit bool
 }
 
 // loadConfig reads the config file.
@@ -66,6 +72,7 @@ func loadConfig(configPath string) (Config, error) {
 		"exclude":     true,
 		"force":       true,
 		"remote_name": true,
+		"branches":    true,
 	}
 	// Deserialize data into convenient map for key checking.
 	var rawConfig map[string]any
@@ -130,6 +137,8 @@ func parseFlags(args []string) (Config, error) {
 	helpShort := fs.Bool("h", false, "Show this help message (short)")
 	explain := fs.Bool("explain", false, "Show examples")
 	explainShort := fs.Bool("e", false, "Show examples (short)")
+	version := fs.Bool("version", false, "Show version information")
+	versionShort := fs.Bool("v", false, "Show version information (short)")
 	update := fs.Bool("update", false, "Automatically update repositories that are behind")
 	updateShort := fs.Bool("u", false, "Automatically update repositories that are behind (short)")
 	branch := fs.String("branch", DefaultBranch, "Specify the branch to check")
@@ -145,6 +154,15 @@ func parseFlags(args []string) (Config, error) {
 		return cfg, err
 	}
 
+	// Track whether the branch flag was explicitly passed on the command line,
+	// so per-repo branch overrides in .rprc can be distinguished from an
+	// explicit CLI request that should apply globally.
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "branch" || f.Name == "b" {
+			cfg.BranchExplicit = true
+		}
+	})
+
 	// Override config with command line flags
 	if *help {
 		cfg.Help = *help
@@ -158,6 +176,13 @@ func parseFlags(args []string) (Config, error) {
 	}
 	if *explainShort {
 		cfg.Explain = *explainShort
+	}
+
+	if *version {
+		cfg.Version = *version
+	}
+	if *versionShort {
+		cfg.Version = *versionShort
 	}
 
 	if *log {

@@ -96,6 +96,26 @@ func TestParseFlags(t *testing.T) {
 			err: nil,
 		},
 		{
+			name: "-v",
+			args: []string{"-v"},
+			want: Config{
+				Branch:     "main",
+				RemoteName: "origin",
+				Version:    true,
+			},
+			err: nil,
+		},
+		{
+			name: "--version",
+			args: []string{"--version"},
+			want: Config{
+				Branch:     "main",
+				RemoteName: "origin",
+				Version:    true,
+			},
+			err: nil,
+		},
+		{
 			name: "-u",
 			args: []string{"-u"},
 			want: Config{
@@ -158,8 +178,9 @@ func TestParseFlags(t *testing.T) {
 			name: "-b",
 			args: []string{"-b", "test"},
 			want: Config{
-				Branch:     "test",
-				RemoteName: "origin",
+				Branch:         "test",
+				RemoteName:     "origin",
+				BranchExplicit: true,
 			},
 			err: nil,
 		},
@@ -167,8 +188,9 @@ func TestParseFlags(t *testing.T) {
 			name: "--branch",
 			args: []string{"--branch", "test"},
 			want: Config{
-				Branch:     "test",
-				RemoteName: "origin",
+				Branch:         "test",
+				RemoteName:     "origin",
+				BranchExplicit: true,
 			},
 			err: nil,
 		},
@@ -206,6 +228,9 @@ exclude:
  - repo3
 force: true
 remote_name: upstream
+branches:
+  repo1: release
+  repo2: hotfix
 `
 
 	// Write the sample config content to the file.
@@ -223,6 +248,7 @@ remote_name: upstream
 	assert.ElementsMatch(t, []string{"repo3"}, config.Exclude, "Expected exclude to match")
 	assert.True(t, config.Force, "Expected force to be true")
 	assert.Equal(t, "upstream", config.RemoteName, "Expected remote name to be 'upstream'")
+	assert.Equal(t, map[string]string{"repo1": "release", "repo2": "hotfix"}, config.Branches, "Expected branches map to match")
 }
 
 func TestFindConfigFile(t *testing.T) {
@@ -268,6 +294,7 @@ func TestValidateKeys(t *testing.T) {
 		"exclude":     true,
 		"force":       true,
 		"remote_name": true,
+		"branches":    true,
 	}
 
 	// Test with all valid keys
@@ -278,6 +305,7 @@ func TestValidateKeys(t *testing.T) {
 		"exclude":     []string{"repo2"},
 		"force":       false,
 		"remote_name": "origin",
+		"branches":    map[string]string{"repo1": "release"},
 	}
 	err := validateKeys(config, validKeys)
 	assert.NoError(t, err, "Expected no error with all valid keys")

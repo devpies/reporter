@@ -34,12 +34,41 @@ Reporter recursively reports and resolves drifts across multiple git repositorie
 Options:
   --explain, -e     Show examples
   --help, -h        Show this help message
+  --version, -v     Show version information
   --update, -u      Automatically update repositories that are behind
   --branch, -b      Specify the branch to check (default: main)
   --log, -l         Show the complete list of changes using git log
   --force, -f       Forcefully abort rebase and merge conflicts to update
   --remote, -r      Remote name (default: origin)
+
+Config file (.rprc) also supports a 'branches' map to override the branch
+checked per-repository, keyed by directory name:
+
+  branches:
+    repo1: release
+    repo2: develop
 ```
+
+## Releases
+
+Prebuilt binaries for Linux, macOS, and Windows (amd64/arm64) are published on the
+[GitHub Releases](https://github.com/devpies/reporter/releases) page for every `vX.Y.Z` tag. Download the archive for
+your platform, and verify the build with:
+
+```sh
+rp --version
+```
+
+Maintainers cut a release by pushing a tag matching `v*`:
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+This triggers the `Release` GitHub Actions workflow, which cross-builds `rp` for every supported platform and
+publishes a GitHub Release with the binaries attached and auto-generated notes listing the changes since the
+previous release.
 
 ## Installation
 ### Prerequisites
@@ -120,6 +149,27 @@ exclude:
    - repo3
 remote_name: origin
 ```
+
+### Per-Repository Branch Overrides
+
+By default, every repository is checked against the same `branch`. If you need specific repositories to track a
+different branch, add a `branches` map keyed by repository directory name.
+
+- **Precedence:** A per-repo entry in `branches` overrides the global `branch` for that repository.
+- **CLI override:** Explicitly passing `--branch`/`-b` on the command line takes precedence over both the global
+`branch` and any `branches` entries, applying to every repository checked.
+
+Example `.rprc` File
+
+```yaml
+branch: main
+branches:
+   repo1: release
+   repo2: develop
+```
+
+In this example, `repo1` is checked against `release`, `repo2` against `develop`, and every other repository against
+the global `main` branch.
 
 ## Contributing
 

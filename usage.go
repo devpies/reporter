@@ -11,11 +11,19 @@ func showUsage() {
 	_, _ = fmt.Println("Options:")
 	_, _ = fmt.Println("  --explain, -e     Show examples")
 	_, _ = fmt.Println("  --help, -h        Show this help message")
+	_, _ = fmt.Println("  --version, -v     Show version information")
 	_, _ = fmt.Println("  --update, -u      Automatically update repositories that are behind")
 	_, _ = fmt.Println("  --branch, -b      Specify the branch to check (default: main)")
 	_, _ = fmt.Println("  --log, -l         Show the complete list of changes using git log")
 	_, _ = fmt.Println("  --force, -f       Forcefully abort rebase and merge conflicts to update")
 	_, _ = fmt.Println("  --remote, -r      Remote name (default: origin)")
+	_, _ = fmt.Println()
+	_, _ = fmt.Println("Config file (.rprc) also supports a 'branches' map to override the branch")
+	_, _ = fmt.Println("checked per-repository, keyed by directory name:")
+	_, _ = fmt.Println()
+	_, _ = fmt.Println("  branches:")
+	_, _ = fmt.Println("    repo1: release")
+	_, _ = fmt.Println("    repo2: develop")
 }
 
 // showExamples displays usage with example output.
